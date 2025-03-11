@@ -6,8 +6,8 @@ on:
     - cron: "0 0 1 * *"
   workflow_dispatch:
 env:
-  DOCKER_URL: https://hub.docker.com/r/aliciousness/rickroll
-  DOCKER_API: https://hub.docker.com/v2/repositories/aliciousness/rickroll
+  DOCKER_URL: https://hub.docker.com/r/aliciousness/atlantis
+  DOCKER_API: https://hub.docker.com/v2/repositories/aliciousness/atlantis
   BUILD_ID: ${{ github.run_id }}
 jobs:
   update-readme:
@@ -49,7 +49,7 @@ jobs:
       - name: Update README
         run: |
           # Update Docker Pulls badge
-          sed -i "s|\[!\[Docker Pulls\](.*)](https://hub.docker.com/r/aliciousness/rickroll)|[![Docker Pulls](https://img.shields.io/badge/Docker%20Pulls-$DOCKER_PULLS-blue)](https://hub.docker.com/r/aliciousness/rickroll)|" README.md
+          sed -i "s|\[!\[Docker Pulls\](.*)](https://hub.docker.com/r/aliciousness/atlantis)|[![Docker Pulls](https://img.shields.io/badge/Docker%20Pulls-$DOCKER_PULLS-blue)](https://hub.docker.com/r/aliciousness/atlantis)|" README.md
 
           # Latest Release badge
           sed -i "s|\[!\[Latest Release\](.*)](https://github.com/aliciousness/ACTION-latest-release-badge/releases)|[![Latest Release](${{ steps.check_release.outputs.badge_url }})](https://github.com/aliciousness/ACTION-latest-release-badge/releases)|" README.md

@@ -1,11 +1,11 @@
-name: Release rickroll
+name: Release Atlantis
 
 on:
   release:
     types: [published]
 
 jobs:
-  rickroll:
+  atlantis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +31,6 @@ jobs:
           --platform=linux/amd64,linux/arm64 \
           --push \
           --build-arg VERSION=${GITHUB_REF##*/v} \
-          --tag=aliciousness/rickroll:${GITHUB_REF##*/v} \
-          --tag=aliciousness/rickroll:latest \
+          --tag=aliciousness/atlantis:${GITHUB_REF##*/v} \
+          --tag=aliciousness/atlantis:latest \
           .
