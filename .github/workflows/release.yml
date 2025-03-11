@@ -34,3 +34,19 @@ jobs:
           --tag=aliciousness/atlantis:${GITHUB_REF##*/v} \
           --tag=aliciousness/atlantis:latest \
           .
+
+  trigger-badges:
+    needs: atlantis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Badges Workflow
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'badges.yml',
+              ref: 'main'
+            })
