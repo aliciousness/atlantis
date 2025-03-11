@@ -1,0 +1,12 @@
+default-tf-distribution: "terraform"
+disable-global-apply-lock: false
+emoji-reaction: "eyes"
+enable-diff-markdown-format: true
+enable-policy-checks: true
+fail-on-pre-workflow-hook-error: false
+log-level: "info"
+repo_allowlist: "github.com/gce-digital-marketing-infrastructure/INFRA-*"
+use-tf-plugin-cache: false
+web-basic-auth: true
+repo-config: "/home/atlantis/atlantis.yaml"
+repo-allowlist: "github.com/gce-digital-marketing-infrastructure/INFRA-wmkt-gce-sandbox"

@@ -1,0 +1,69 @@
+name: Update README Labels
+
+on:
+  schedule:
+    # Monthly CRON job
+    - cron: "0 0 1 * *"
+  workflow_dispatch:
+env:
+  DOCKER_URL: https://hub.docker.com/r/aliciousness/rickroll
+  DOCKER_API: https://hub.docker.com/v2/repositories/aliciousness/rickroll
+  BUILD_ID: ${{ github.run_id }}
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get Docker Pulls and Image Size
+        run: |
+          REPO_NAME="${{ github.repository }}"
+          DOCKER_DATA=$(curl -s "${{ env.DOCKER_API }}")
+          PULLS=$(echo "$DOCKER_DATA" | jq .pull_count)
+          SIZE=$(echo "$DOCKER_DATA" | jq .full_size)
+
+          echo "DOCKER_PULLS=$PULLS" >> $GITHUB_ENV
+          # Convert bytes to MB
+          echo "IMAGE_SIZE=$(echo "$SIZE / 1048576" | bc) MB" >> $GITHUB_ENV
+
+      - name: Check latest release and get badge URL
+        uses: aliciousness/ACTION-latest-release-badge@main
+        id: check_release
+        with:
+          repo: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: debug
+        run: echo "${{ steps.check_release.outputs.badge_url }}"
+
+      - name: Get Last Commit Date
+        id: last_commit
+        run: |
+          LAST_COMMIT=$(git log -1 --format=%cd --date=short)
+          echo "LAST_COMMIT_DATE=$LAST_COMMIT" >> $GITHUB_ENV
+
+      - name: Update README
+        run: |
+          # Update Docker Pulls badge
+          sed -i "s|\[!\[Docker Pulls\](.*)](https://hub.docker.com/r/aliciousness/rickroll)|[![Docker Pulls](https://img.shields.io/badge/Docker%20Pulls-$DOCKER_PULLS-blue)](https://hub.docker.com/r/aliciousness/rickroll)|" README.md
+
+          # Latest Release badge
+          sed -i "s|\[!\[Latest Release\](.*)](https://github.com/aliciousness/ACTION-latest-release-badge/releases)|[![Latest Release](${{ steps.check_release.outputs.badge_url }})](https://github.com/aliciousness/ACTION-latest-release-badge/releases)|" README.md
+
+          # # Update Build Status badge using Shields.io for GitHub workflows
+          # sed -i "s|\[!\[Build Status\](.*)|[![Build Status](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/release.yml?branch=main)]|" README.md
+
+          # # Update Last Commit badge
+          # sed -i "s|\[!\[GitHub last commit\](.*)|[![GitHub last commit](https://img.shields.io/badge/Last%20Commit-$LAST_COMMIT_DATE-yellow)]|" README.md
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "Update README labels"
+          git push origin main

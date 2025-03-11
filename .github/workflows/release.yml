@@ -1,0 +1,36 @@
+name: Release rickroll
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  rickroll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64
+          use: true
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        run: |
+          docker buildx build \
+          --platform=linux/amd64,linux/arm64 \
+          --push \
+          --build-arg VERSION=${GITHUB_REF##*/v} \
+          --tag=aliciousness/rickroll:${GITHUB_REF##*/v} \
+          --tag=aliciousness/rickroll:latest \
+          .

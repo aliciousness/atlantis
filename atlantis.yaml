@@ -1,0 +1,11 @@
+# This repo file needs to be copied to the projects root of each directory that Atlantis will be managing.
+
+repos:
+  - id: /.*/
+    branch: /.*/
+    plan_requirements: [mergeable]
+    apply_requirements: [approved]
+    import_requirements: [approved]
+    allowed_overrides: [workflow, plan_requirements]
+    allow_custom_workflows: true
+    policy_check: true

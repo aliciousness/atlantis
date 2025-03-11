@@ -1,0 +1,30 @@
+# Note: This file is only used for Atlantis local development
+services:
+  ngrok:
+    image: wernight/ngrok:latest@sha256:d211f29ebcfe5f4e72df4fa8bdd9a667886e127d7fcb1be4a1af5ad83a8a1b77
+    ports:
+      - 4040:4040
+    environment:
+      # https://dashboard.ngrok.com/get-started/your-authtoken
+      NGROK_AUTH: "Your auth token"
+      NGROK_PROTOCOL: http
+      NGROK_PORT: atlantis:4141
+    depends_on:
+      - atlantis
+  atlantis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "atlantis server --config /config.yaml"
+    ports:
+      - 4141:4141
+    volumes:
+      - ${HOME}/.aws:/home/atlantis/.aws/:ro
+      - atlantis:/home/atlantis/.atlantis
+    environment:
+      ATLANTIS_GH_USER: "your-github-user"
+      ATLANTIS_GH_TOKEN: "your-github-token"
+      ATLANTIS_GH_WEBHOOK_SECRET: "your-webhook-secret"
+
+volumes:
+  atlantis:
