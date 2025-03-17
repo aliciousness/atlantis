@@ -6,8 +6,7 @@ ENV VERSION=${VERSION}
 # copy a terraform binary of the current version
 USER root
 # Install git
-RUN apk add --no-cache git curl && \
-  curl -L "https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64" -o /usr/local/bin/tfsec && \
+RUN curl -L "https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-linux-amd64" -o /usr/local/bin/tfsec && \
   chmod +x /usr/local/bin/tfsec
 COPY script.sh /docker-entrypoint.d/script.sh
 USER atlantis
