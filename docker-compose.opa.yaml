@@ -1,0 +1,17 @@
+# OPA server to test policy configurations
+services:
+  opa:
+    image: openpolicyagent/opa:latest-debug
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./policies:/policies
+    command: "run --server --addr :8181 --bundle /policies"
+    platform: linux/amd64
+    environment:
+      OPA_LOG_LEVEL: "debug"
+      OPA_POLICY_PATH: "/policies"
+      OPA_PORT: "8181"
+      OPA_SERVER: "true"
+      OPA_SET_DECISION_LOGS_CONSOLE: "true"
+      OPA_SET_DECISION_LOGS_FORMAT: "json"

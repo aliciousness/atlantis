@@ -1,0 +1,10 @@
+{
+    "terraform": {
+        "allowed_resources": {
+            "aws_s3_bucket": true,
+            "aws_iam_role": true,
+            "aws_vpc": true,
+            "aws_subnet": true
+        }
+    }
+}
