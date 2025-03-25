@@ -19,14 +19,15 @@ services:
     ports:
       - 4141:4141
     volumes:
-      - ${HOME}/.aws:/home/atlantis/.aws/:ro
+      # - ${HOME}/.aws:/home/atlantis/.aws/:ro
       - ./config.yaml:/config.yaml
     environment:
       ATLANTIS_GH_USER: "your-github-user"
       ATLANTIS_GH_TOKEN: "your-github-token"
       ATLANTIS_GH_WEBHOOK_SECRET: "your-webhook-secret"
       # ATLANTIS_REPO_CONFIG: "/home/atlantis/atlantis.yaml" # Use ATLANTIS_REPO_CONFIG_JSON instead
-      ATLANTIS_REPO_CONFIG_JSON: '[{"id":"/.*/","branch":"/.*/","plan_requirements":["mergeable"],"apply_requirements":["approved"],"import_requirements":["approved"],"allowed_overrides":["workflow","plan_requirements"],"allow_custom_workflows":true,"policy_check":true}]'
+      # ATLANTIS_REPO_CONFIG_JSON: '[{"id":"/.*/","branch":"/.*/","plan_requirements":["mergeable"],"apply_requirements":["approved"],"import_requirements":["approved"],"allowed_overrides":["workflow","plan_requirements"],"allow_custom_workflows":true,"policy_check":true}]'
+      # AWS_PROFILES: '[{"example_role_one":"arn:aws:iam::123456789012:role/role-name","region":"us-west-2"},{"example_role_two":"arn:aws:iam::123456789012:role/role-name","region":"us-east-1"}]'
 
 volumes:
   atlantis:

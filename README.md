@@ -27,6 +27,31 @@ Image is based on the official Atlantis image with additional configurations and
 # Environment Variables
 Reference the following environment variables or config file [here](https://www.runatlantis.io/docs/server-configuration.html)
 
+## Optional AWS Configuration
+The container includes an AWS profile configuration script that can set up multiple AWS role configurations. To use it, provide a JSON array through the `AWS_PROFILES` environment variable:
+
+```yaml
+environment:
+  AWS_PROFILES: '[
+    {"role_one":"arn:aws:iam::123456789012:role/role-name","region":"us-west-2"},
+    {"role_two":"arn:aws:iam::123456789012:role/role-name","region":"us-east-1"}
+  ]'
+```
+
+This will create AWS profiles in `/home/atlantis/.aws/config` that can be referenced in your Terraform configurations:
+
+```ini
+[profile role_one]
+role_arn = arn:aws:iam::123456789012:role/role-name
+region = us-west-2
+credential_source = EcsContainer
+
+[profile role_two]
+role_arn = arn:aws:iam::123456789012:role/role-name
+region = us-east-1
+credential_source = EcsContainer
+```
+
 ## Usage
 Example docker-compose configuration:
 
