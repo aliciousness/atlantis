@@ -31,23 +31,23 @@ if [ -z "$REGISTRY_JSON" ]; then
   return 0
 fi
 
-echo "Setting up private Terraform module registry for Atlantis"
+info "Setting up private Terraform module registry for Atlantis"
 
 debug 2 "REGISTRY_JSON: $REGISTRY_JSON"
 
 # Create the .terraform.d directory if it doesn't exist
 if [ ! -d /home/atlantis/.terraform.d ]; then
-  info "Creating /home/atlantis/.terraform.d directory"
+  debug "Creating /home/atlantis/.terraform.d directory"
   mkdir -p /home/atlantis/.terraform.d
 fi
 
 # Create the credentials.tfrc.json file
-info "Creating /home/atlantis/.terraform.d/credentials.tfrc.json file"
+debug "Creating /home/atlantis/.terraform.d/credentials.tfrc.json file"
 echo "$REGISTRY_JSON" > /home/atlantis/.terraform.d/credentials.tfrc.json
 
 # set the permissions on the credentials.tfrc.json file
-info "Setting permissions on /home/atlantis/.terraform.d/credentials.tfrc.json file"
+debug "Setting permissions on /home/atlantis/.terraform.d/credentials.tfrc.json file"
 chown atlantis:root /home/atlantis/.terraform.d/credentials.tfrc.json
 chmod 600 /home/atlantis/.terraform.d/credentials.tfrc.json
 
-echo "Private Terraform module registry setup complete"
+info "Private Terraform module registry setup complete"

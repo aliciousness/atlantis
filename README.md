@@ -27,6 +27,29 @@ Image is based on the official Atlantis image with additional configurations and
 # Environment Variables
 Reference the following environment variables or config file [here](https://www.runatlantis.io/docs/server-configuration.html)
 
+## Optional Private Registry Configuration
+The container includes a Terraform private registry configuration script. To use it, provide a JSON object through the `REGISTRY_JSON` environment variable:
+
+```yaml
+environment:
+  REGISTRY_JSON: '{
+    "credentials": {
+      "your-registry.example.com": {
+        "token": "your-registry-token"
+      }
+    }
+  }'
+```
+
+This will create a `credentials.tfrc.json` file in `~/atlantis/.terraform.d/` that can be used to authenticate with private Terraform module registries.
+
+To debug the registry script you can set the `ENTRY_DEBUG_LEVEL` to 1 or 2 to see the output of the script:
+
+```yaml
+environment:
+  ENTRY_DEBUG_LEVEL: 1  # 1=info, 2=debug
+```
+
 ## Optional AWS Configuration
 The container includes an AWS profile configuration script that can set up multiple AWS role configurations. To use it, provide a JSON array through the `AWS_PROFILES` environment variable:
 
