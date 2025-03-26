@@ -27,7 +27,21 @@ services:
       ATLANTIS_GH_WEBHOOK_SECRET: "your-webhook-secret"
       # ATLANTIS_REPO_CONFIG: "/home/atlantis/atlantis.yaml" # Use ATLANTIS_REPO_CONFIG_JSON instead
       # ATLANTIS_REPO_CONFIG_JSON: '[{"id":"/.*/","branch":"/.*/","plan_requirements":["mergeable"],"apply_requirements":["approved"],"import_requirements":["approved"],"allowed_overrides":["workflow","plan_requirements"],"allow_custom_workflows":true,"policy_check":true}]'
-      # AWS_PROFILES: '[{"example_role_one":"arn:aws:iam::123456789012:role/role-name","region":"us-west-2"},{"example_role_two":"arn:aws:iam::123456789012:role/role-name","region":"us-east-1"}]'
+      AWS_PROFILES: |
+        [
+          {
+            "wmkt-gce-sandbox": "arn:aws:iam::884977855360:role/wmkt_gce_sandbox-atlantis-source-role",
+            "region": "us-west-2"
+          },
+          {
+            "wmkt-gce-prod": "arn:aws:iam::884977855360:role/atlantis-20250325181155424300000002",
+            "region": "us-east-1"
+          },
+          {
+            "terraform-state": "arn:aws:iam::884977855360:role/atlantis_state_lock",
+            "region": "us-west-2"
+          }
+        ]
 
 volumes:
   atlantis:

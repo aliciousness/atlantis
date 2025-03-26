@@ -52,6 +52,13 @@ region = us-east-1
 credential_source = EcsContainer
 ```
 
+To debug the `AWS_PROFILE` script you can set the `AWS_PROFILES_DEBUG_LEVEL` to 1 or 2 to see the output of the script (default 0).
+
+```yaml
+environment:
+  AWS_PROFILES_DEBUG_LEVEL: 1
+```
+
 ## Usage
 Example docker-compose configuration:
 
