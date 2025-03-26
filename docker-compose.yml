@@ -42,6 +42,13 @@ services:
             "region": "us-west-2"
           }
         ]
-
+      REGISTRY_JSON: |
+        {
+          "credentials":{
+            "gcewebmkt.jfrog.io": {
+              "token": "eyJ2ZXIiOiIyIiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYiLCJraWQiOiJvcl82M2NJVXk3X2JaQV9RU3QteENqOUVFVExydU9MblhLTE10alEyaWVFIn0.eyJzdWIiOiJqZmFjQDAxZThhcDNxNDFmcG43MDlrYXBwMDEwdGU4L3VzZXJzL2F0bGFudGlzIiwic2NwIjoiYXBwbGllZC1wZXJtaXNzaW9ucy9hZG1pbiIsImF1ZCI6IipAKiIsImlzcyI6ImpmZmVAMDFlOGFwM3E0MWZwbjcwOWthcHAwMTB0ZTgiLCJpYXQiOjE3NDMwMjQ1MTYsImp0aSI6IjZlZTBlNjljLWNiOTctNGM2OS1hNjAyLWM3NDY5Nzk5YmQ4NSIsInRpZCI6ImdjZXdlYm1rdCJ9.OB--FGqRxt3G6ZCQeCyuUP9Gsz7MMPZbdPDPTXZr9D_5CsseOe2bU6zDmL_-lWaXANhmnIi2sSzru5BuQ9AQOj5Ys3RY-06ILJayIDe2hh1kBCq6baMTQdkqBDLol9MbAYS_F0FfXw1oA85U72qAgvcZhLiKyLaoamZ8JxVB0zpfvcp13OlOWCrenC6S25_kkX70kxFntnuMSqdNdlhchgW3w7dcMpAsjpxveia1aP6K0d5kJbWtzIeF--H1zY8-pGy9FP1Gi82so28OPU1BQvK-LjH4-UUVUUocIMmYIqrM2UhEs7g1LauK0BjEjTJypK4qAeDDf3O6gsM7kA1EEw"
+            }
+          }
+        }
 volumes:
   atlantis:

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Debug levels: 0=none, 1=info, 2=debug
-DEBUG_LEVEL=${AWS_PROFILE_DEBUG_LEVEL:-1}
+DEBUG_LEVEL=${ENTRY_DEBUG_LEVEL:-1}
 
 debug() {
     local level=$1
