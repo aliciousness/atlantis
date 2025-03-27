@@ -79,7 +79,7 @@ To debug the `AWS_PROFILE` script you can set the `AWS_PROFILES_DEBUG_LEVEL` to 
 
 ```yaml
 environment:
-  AWS_PROFILES_DEBUG_LEVEL: 1
+  ENTRY_DEBUG_LEVEL: 1  # 1=info, 2=debug
 ```
 
 ## Usage
