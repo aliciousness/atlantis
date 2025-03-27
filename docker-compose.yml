@@ -38,5 +38,6 @@ services:
             "region": "us-east-1"
           }
         ]
+      REGISTRY_JSON: '"{\n\"credentials\":{\n\"your-registry.example.com\":{\n\"token\":\"eyJ2ZXIiOiIyIiwidHlwIjoiSldUIiwiYW.dlKgDQCQQXCK4jM4YOHyuecv74g\"\n}\n}\n}\n"'
 volumes:
   atlantis:

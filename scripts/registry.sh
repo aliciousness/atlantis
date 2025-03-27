@@ -31,22 +31,29 @@ fi
 info "Setting up private Terraform module registry for Atlantis"
 
 # Clean up JSON input to remove any newlines, tabs, or spaces
-cleaned_json=$(echo "$REGISTRY_JSON" | tr -d '\n\t ' | jq -c '.')
+cleaned_json=$(echo "$REGISTRY_JSON" | jq '.')
+if [ $? -ne 0 ]; then
+    echo "Error: Invalid JSON format in REGISTRY_JSON"
+    exit 1
+fi
+
+# Compact the JSON to remove unnecessary whitespace
+cleaned_json=$(echo "$cleaned_json" | jq -c '.')
 
 debug 2 "cleaned REGISTRY_JSON: $cleaned_json"
 
 # Create the .terraform.d directory if it doesn't exist
 if [ ! -d /home/atlantis/.terraform.d ]; then
-  debug "Creating /home/atlantis/.terraform.d directory"
-  mkdir -p /home/atlantis/.terraform.d
+    debug 2 "Creating /home/atlantis/.terraform.d directory"
+    mkdir -p /home/atlantis/.terraform.d
 fi
 
-# Create the credentials.tfrc.json file
-debug "Creating /home/atlantis/.terraform.d/credentials.tfrc.json file"
-echo "$cleaned_json" > /home/atlantis/.terraform.d/credentials.tfrc.json
+# Create the credentials.tfrc.json file with proper JSON formatting
+debug 2 "Creating /home/atlantis/.terraform.d/credentials.tfrc.json file"
+echo "$cleaned_json" | jq '.' > /home/atlantis/.terraform.d/credentials.tfrc.json
 
 # set the permissions on the credentials.tfrc.json file
-debug "Setting permissions on /home/atlantis/.terraform.d/credentials.tfrc.json file"
+debug 2 "Setting permissions on /home/atlantis/.terraform.d/credentials.tfrc.json file"
 chown atlantis:root /home/atlantis/.terraform.d/credentials.tfrc.json
 chmod 600 /home/atlantis/.terraform.d/credentials.tfrc.json
 
