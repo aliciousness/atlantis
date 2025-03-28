@@ -8,4 +8,4 @@ log-level: "info"
 # repo_allowlist: "github.com/gce-digital-marketing-infrastructure/INFRA-*"
 use-tf-plugin-cache: false
 web-basic-auth: true
-repo-allowlist: "github.com/gce-digital-marketing-infrastructure/INFRA-wmkt-gce-sandbox"
+repo-allowlist: "github.com/org/repo
