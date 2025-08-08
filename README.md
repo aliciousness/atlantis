@@ -128,5 +128,3 @@ Create a pull request.
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-You can now edit the README.md file and replace its content with the above sections.
