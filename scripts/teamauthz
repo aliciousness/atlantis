@@ -1,0 +1,230 @@
+#!/bin/bash
+
+# Atlantis Team Authorization Script
+# This script provides team-based authorization for Atlantis commands
+# It handles multiple teams correctly with proper escaping and returns pass/deny logic
+#
+# Why check permissions twice?
+# The way Atlantis is currently designed, not all relevant information may be available when the first check happens. 
+# In particular, affected projects are not known because pre workflow hooks haven't run yet, so repositories that use hooks to generate or modify repo configurations won't know which projects to check permissions for.
+# Arguments: atlantis_command repo [teams...]
+# Environment variables are set by Atlantis (see documentation)
+# https://www.runatlantis.io/docs/repo-and-project-permissions.html#reference
+# 
+# Returns: 
+# - exit 0 with "pass" on last line if authorized
+# - exit 0 with reason message if denied
+# - exit 1 if script error
+
+set -euo pipefail
+ORG="gce-digital-marketing-infrastructure"
+DEV_APPLY_TEAMS="$ORG/devops,$ORG/Trainee"
+PROD_APPLY_TEAMS="$ORG/devops,$ORG/tf_policy_approvers"
+# Configuration - Define your team permissions here
+# Format: "command:project_pattern:required_teams"
+PERMISSION_RULES=(
+
+    # Matches: environments/prod, prod, prod-*, etc.
+    "apply:*prod*:$PROD_APPLY_TEAMS"
+    
+    # Dev environments - any team with "dev" in name can apply
+    # Matches: environments/dev, dev, dev-*, etc.
+    "apply:*dev*:$DEV_APPLY_TEAMS"
+    
+    # Plan is allowed for everyone (no restrictions)
+    "plan:*:*"
+    
+    # Import requires admin teams (example, can be customized)
+    "import:*:admins,prod-deployers"
+)
+
+# Function to log debug information (only if DEBUG=1)
+debug_log() {
+    if [[ "${DEBUG:-0}" == "1" ]]; then
+        echo "[DEBUG] $*" >&2
+    fi
+}
+
+# Function to safely escape team names for pattern matching
+escape_team_name() {
+    local team="$1"
+    # Escape special regex characters
+    printf '%s\n' "$team" | sed 's/[[\.*^$()+?{|]/\\&/g'
+}
+
+# Function to check if a team matches a pattern
+team_matches_pattern() {
+    local team="$1"
+    local pattern="$2"
+    
+    # If pattern is *, it matches everything
+    if [[ "$pattern" == "*" ]]; then
+        return 0
+    fi
+    
+    # Use bash pattern matching (not regex)
+    if [[ "$team" == $pattern ]]; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to check if project matches pattern
+project_matches_pattern() {
+    local project="${1:-}"
+    local pattern="$2"
+    
+    # If pattern is *, it matches everything
+    if [[ "$pattern" == "*" ]]; then
+        return 0
+    fi
+    
+    # Use bash pattern matching
+    if [[ "$project" == $pattern ]]; then
+        return 0
+    fi
+    
+    return 1
+}
+
+# Function to check if user has required team membership
+check_team_authorization() {
+    local command="$1"
+    local project="${2:-}"
+    shift 2
+    local user_teams=("$@")
+    
+    # Handle case where no teams are provided
+    if [[ ${#user_teams[@]} -eq 0 ]]; then
+        user_teams=()
+    fi
+    
+    debug_log "Checking authorization for command: $command, project: $project"
+    debug_log "User teams: ${user_teams[*]:-none}"
+    
+    # Check permission rules
+    for rule in "${PERMISSION_RULES[@]}"; do
+        IFS=':' read -r rule_command rule_project rule_teams <<< "$rule"
+
+        debug_log "Checking rule: $rule"
+
+        # Check if command matches
+        if [[ "$command" != "$rule_command" ]]; then
+            continue
+        fi
+
+        # Check if project matches
+        if ! project_matches_pattern "$project" "$rule_project"; then
+            continue
+        fi
+
+        debug_log "Rule matches command and project"
+
+        # For production apply, get required teams from env var
+        if [[ "$rule_teams" == "PROD_APPLY_TEAMS" ]]; then
+            if [[ -z "${PROD_APPLY_TEAMS:-}" ]]; then
+                echo "Access denied: PROD_APPLY_TEAMS environment variable is not set"
+                return 1
+            fi
+            # Support comma or space separated list
+            IFS=', ' read -ra required_teams <<< "${PROD_APPLY_TEAMS//,/ }"
+        else
+            IFS=',' read -ra required_teams <<< "$rule_teams"
+        fi
+
+        for required_team in "${required_teams[@]}"; do
+            # Trim whitespace
+            required_team=$(echo "$required_team" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+            debug_log "Checking required team: $required_team"
+
+            # If required team is "*", allow access regardless of user teams
+            if [[ "$required_team" == "*" ]]; then
+                debug_log "Required team is *, allowing access"
+                return 0
+            fi
+
+            for user_team in "${user_teams[@]:-}"; do
+                if [[ -n "$user_team" ]] && team_matches_pattern "$user_team" "$required_team"; then
+                    debug_log "User team $user_team matches required team $required_team"
+                    return 0
+                fi
+            done
+        done
+
+        # If we reach here, user doesn't have required team membership for this rule
+        echo "Access denied: User must be member of one of: ${required_teams[*]} to run '$command' on project '$project'"
+        return 1
+    done
+
+    # No matching rule found - deny by default for security
+    echo "Access denied: No authorization rule found for command '$command' on project '$project'"
+    return 1
+}
+
+# Main script logic
+main() {
+    # Parse command line arguments
+    if [[ $# -lt 2 ]]; then
+        echo "Usage: $0 <atlantis_command> <repo> [teams...]"
+        exit 1
+    fi
+    
+    local atlantis_command="$1"
+    local repo="$2"
+    shift 2
+    local teams=("$@")
+    
+    # Get environment variables from Atlantis
+    local user_name="${USER_NAME:-unknown}"
+    local project_name="${PROJECT_NAME:-}"
+    local base_branch="${BASE_BRANCH_NAME:-main}"
+    local pull_num="${PULL_NUM:-0}"
+    
+    debug_log "=== Atlantis Team Authorization ==="
+    debug_log "Command: $atlantis_command"
+    debug_log "Repository: $repo"
+    debug_log "User: $user_name"
+    debug_log "Project: $project_name"
+    debug_log "Base branch: $base_branch"
+    debug_log "Pull request: $pull_num"
+    debug_log "Teams: ${teams[*]:-none}"
+    
+    # Validate inputs
+    if [[ -z "$atlantis_command" ]]; then
+        echo "Error: atlantis_command cannot be empty"
+        exit 1
+    fi
+    
+    if [[ -z "$repo" ]]; then
+        echo "Error: repo cannot be empty"
+        exit 1
+    fi
+    
+    # Check authorization
+    if [[ ${#teams[@]} -eq 0 ]]; then
+        # No teams provided
+        if check_team_authorization "$atlantis_command" "$project_name"; then
+            debug_log "Authorization successful"
+            echo "pass"
+            exit 0
+        else
+            debug_log "Authorization failed"
+            exit 0  # Exit 0 but don't print "pass" - Atlantis will see this as denied
+        fi
+    else
+        # Teams provided
+        if check_team_authorization "$atlantis_command" "$project_name" "${teams[@]}"; then
+            debug_log "Authorization successful"
+            echo "pass"
+            exit 0
+        else
+            debug_log "Authorization failed"
+            exit 0  # Exit 0 but don't print "pass" - Atlantis will see this as denied
+        fi
+    fi
+}
+
+# Run main function
+main "$@"

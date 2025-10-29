@@ -1,4 +1,4 @@
-FROM ghcr.io/runatlantis/atlantis:v0.33.0-alpine
+FROM ghcr.io/runatlantis/atlantis:v0.36.0-alpine
 LABEL maintainer="Richard Craddock craddock9richard@gmail.com"
 LABEL version=$VERSION
 ARG VERSION
@@ -10,4 +10,6 @@ RUN apk add --no-cache jq \
   && mkdir -p /home/atlantis/policies \
   && chown -R atlantis:root /home/atlantis/policies
 COPY scripts/ /docker-entrypoint.d/
+RUN mv /docker-entrypoint.d/teamauthz /usr/local/bin/teamauthz \
+  && chmod +x /usr/local/bin/teamauthz
 USER atlantis
