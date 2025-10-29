@@ -19,13 +19,16 @@
 set -euo pipefail
 ORG="gce-digital-marketing-infrastructure"
 DEV_APPLY_TEAMS="$ORG/devops,$ORG/Trainee"
-PROD_APPLY_TEAMS="$ORG/devops,$ORG/tf_policy_approvers"
+
+# Default production teams (fallback if no argument provided)
+DEFAULT_PROD_APPLY_TEAMS="$ORG/devops,$ORG/tf_policy_approvers"
+
 # Configuration - Define your team permissions here
 # Format: "command:project_pattern:required_teams"
+# __PROD_TEAMS_ARG__ will be replaced with teams from command arguments
 PERMISSION_RULES=(
-
     # Matches: environments/prod, prod, prod-*, etc.
-    "apply:*prod*:$PROD_APPLY_TEAMS"
+    "apply:*prod*:__PROD_TEAMS_ARG__"
     
     # Dev environments - any team with "dev" in name can apply
     # Matches: environments/dev, dev, dev-*, etc.
@@ -35,7 +38,7 @@ PERMISSION_RULES=(
     "plan:*:*"
     
     # Import requires admin teams (example, can be customized)
-    "import:*:admins,prod-deployers"
+    "import:*:devops"
 )
 
 # Function to log debug information (only if DEBUG=1)
@@ -121,10 +124,10 @@ check_team_authorization() {
 
         debug_log "Rule matches command and project"
 
-        # For production apply, get required teams from env var
-        if [[ "$rule_teams" == "PROD_APPLY_TEAMS" ]]; then
+        # For production apply, get required teams from argument or default
+        if [[ "$rule_teams" == "__PROD_TEAMS_ARG__" ]]; then
             if [[ -z "${PROD_APPLY_TEAMS:-}" ]]; then
-                echo "Access denied: PROD_APPLY_TEAMS environment variable is not set"
+                echo "Access denied: Production teams not configured"
                 return 1
             fi
             # Support comma or space separated list
@@ -166,15 +169,49 @@ check_team_authorization() {
 # Main script logic
 main() {
     # Parse command line arguments
+    # Atlantis will pass: [args...] atlantis_command repo [teams...]
     if [[ $# -lt 2 ]]; then
-        echo "Usage: $0 <atlantis_command> <repo> [teams...]"
+        echo "Usage: $0 [prod_teams] <atlantis_command> <repo> [teams...]"
         exit 1
     fi
     
-    local atlantis_command="$1"
-    local repo="$2"
-    shift 2
-    local teams=("$@")
+    local prod_teams_arg=""
+    local atlantis_command=""
+    local repo=""
+    local teams=()
+    
+    # More robust argument parsing:
+    # If we have at least 3 args and second arg is a valid command, first arg is prod teams
+    local valid_commands="apply plan import"
+    if [[ $# -ge 3 ]] && [[ " $valid_commands " == *" $2 "* ]]; then
+        # Format: prod_teams command repo [user_teams...]
+        prod_teams_arg="$1"
+        atlantis_command="$2"
+        repo="$3"
+        shift 3
+        teams=("$@")
+        debug_log "Parsed with prod teams argument: teams='$prod_teams_arg', command='$atlantis_command', repo='$repo'"
+    elif [[ " $valid_commands " == *" $1 "* ]]; then
+        # Format: command repo [user_teams...] 
+        atlantis_command="$1"
+        repo="$2"
+        shift 2
+        teams=("$@")
+        debug_log "Parsed without prod teams argument: command='$atlantis_command', repo='$repo'"
+    else
+        echo "Error: Unable to parse arguments. Expected: [prod_teams] command repo [user_teams...]"
+        echo "Got: $*"
+        exit 1
+    fi
+    
+    # Set production teams from argument or use default
+    if [[ -n "$prod_teams_arg" ]]; then
+        PROD_APPLY_TEAMS="$prod_teams_arg"
+        debug_log "Using production teams from argument: $PROD_APPLY_TEAMS"
+    else
+        PROD_APPLY_TEAMS="$DEFAULT_PROD_APPLY_TEAMS"
+        debug_log "Using default production teams: $PROD_APPLY_TEAMS"
+    fi
     
     # Get environment variables from Atlantis
     local user_name="${USER_NAME:-unknown}"
