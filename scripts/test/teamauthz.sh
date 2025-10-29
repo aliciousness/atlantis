@@ -23,21 +23,46 @@ FAILED_TESTS=0
 run_test() {
     local test_name="$1"
     local expected_result="$2"  # "pass" or "deny"
-    local command="$3"
-    local repo="$4"
-    shift 4
-    local teams=("$@")
+    
+    # Check if third argument contains comma or org name (indicating prod teams argument)
+    local prod_teams_arg=""
+    local command=""
+    local repo=""
+    local teams=()
+    
+    if [[ "$3" == *","* ]] || [[ "$3" == *"gce-digital-marketing-infrastructure"* ]] || [[ "$3" == *"myorg"* ]]; then
+        # Third argument is prod teams
+        prod_teams_arg="$3"
+        command="$4"
+        repo="$5"
+        shift 5
+        teams=("$@")
+    else
+        # No prod teams argument
+        command="$3"
+        repo="$4"
+        shift 4
+        teams=("$@")
+    fi
     
     TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     echo -e "\n${YELLOW}Test: $test_name${NC}"
-    echo "Command: $command $repo ${teams[*]}"
+    if [[ -n "$prod_teams_arg" ]]; then
+        echo "Command: [prod_teams: $prod_teams_arg] $command $repo ${teams[*]}"
+    else
+        echo "Command: $command $repo ${teams[*]}"
+    fi
     echo "Expected: $expected_result"
     
     # Run the script and capture output and exit code
     local output
     local exit_code
-    output=$(bash "$AUTHZ_SCRIPT" "$command" "$repo" "${teams[@]}" 2>/dev/null)
+    if [[ -n "$prod_teams_arg" ]]; then
+        output=$(bash "$AUTHZ_SCRIPT" "$prod_teams_arg" "$command" "$repo" "${teams[@]}" 2>/dev/null)
+    else
+        output=$(bash "$AUTHZ_SCRIPT" "$command" "$repo" "${teams[@]}" 2>/dev/null)
+    fi
     exit_code=$?
     
     echo "Got output: '$output'"
@@ -182,9 +207,14 @@ echo -e "\n${YELLOW}=== Your Environment Structure Tests ===${NC}"
 setup_env_prod
 run_test "environments/prod apply with devops team" "pass" "apply" "gce-digital-marketing-infrastructure/myrepo" "gce-digital-marketing-infrastructure/devops"
 
-# Test 15: environments/prod apply with tf_policy_approvers team
+# Test 15: environments/prod apply with tf_policy_approvers team  
 setup_env_prod
 run_test "environments/prod apply with tf_policy_approvers team" "pass" "apply" "gce-digital-marketing-infrastructure/myrepo" "gce-digital-marketing-infrastructure/tf_policy_approvers"
+
+# Test 15a: Test with custom prod teams via argument
+setup_env_prod
+export PROJECT_NAME="environments/prod"
+run_test "environments/prod with custom teams via args" "pass" "myorg/custom-team1,myorg/custom-team2" "apply" "gce-digital-marketing-infrastructure/myrepo" "myorg/custom-team1"
 
 # Test 16: environments/dev apply with devops team
 setup_env_dev

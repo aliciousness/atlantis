@@ -84,28 +84,83 @@ environment:
 
 ## Team Authorization Script
 
-The container includes a team authorization script (`teamauthz`) that validates team membership for repository access control. This script can be used to enforce access policies based on GitHub team membership.
+The container includes a configurable team authorization script (`teamauthz`) that validates team membership for repository access control. This script enforces access policies based on GitHub team membership and supports both default and custom team configurations.
 
-### Usage
+### Features
 
-The teamauthz script is located at [scripts/teamauthz](scripts/teamauthz) and can be executed to check team membership permissions for specific repositories or operations.
+- ✅ **Configurable Production Teams**: Define which teams can apply to production via server config
+- ✅ **Secure Defaults**: Built-in fallback teams if no configuration provided
+- ✅ **Environment-Aware**: Different rules for `environments/prod`, `environments/dev`, etc.
+- ✅ **Pattern Matching**: Flexible project and team name matching
+- ✅ **Debug Support**: Detailed logging for troubleshooting
+
+### Configuration
+
+The script is automatically available at `/usr/local/bin/teamauthz` in the container. Configure it in your Atlantis server-side repo config:
+
+#### Option 1: Custom Production Teams
+```yaml
+# server-atlantis.yaml or repos.yaml
+team_authz:
+  command: "teamauthz"
+  args: ["myorg/platform-team,myorg/security-team,myorg/senior-devs"]
+```
+
+#### Option 2: Use Default Teams
+```yaml
+# server-atlantis.yaml or repos.yaml  
+team_authz:
+  command: "teamauthz"
+  # No args = uses default teams: gce-digital-marketing-infrastructure/devops,gce-digital-marketing-infrastructure/tf_policy_approvers
+```
+
+### Access Rules
+
+| Command  | Project Pattern | Default Teams                   | Configurable     |
+| -------- | --------------- | ------------------------------- | ---------------- |
+| `apply`  | `*prod*`        | `devops`, `tf_policy_approvers` | ✅ Via `args`     |
+| `apply`  | `*dev*`         | `devops`, `Trainee`             | ❌ Hardcoded      |
+| `plan`   | `*`             | Anyone                          | ❌ Always allowed |
+| `import` | `*`             | `devops`                        | ❌ Hardcoded      |
+
+### Project Matching Examples
+
+- `environments/prod` ✅ matches `*prod*` (production rules)
+- `environments/dev` ✅ matches `*dev*` (development rules)  
+- `production-app` ✅ matches `*prod*` (production rules)
+- `dev-environment` ✅ matches `*dev*` (development rules)
 
 ### Testing
 
-To test the teamauthz functionality, use the test script located at [scripts/test/teamauthz](scripts/test/teamauthz):
+Run the comprehensive test suite:
 
 ```bash
-# Run the teamauthz test script
-./scripts/test/teamauthz
+# Run all tests (21 test cases)
+./scripts/test/teamauthz.sh
+
+# Test with custom production teams
+export PROJECT_NAME="environments/prod"
+./teamauthz "myorg/custom-team" apply myorg/myrepo myorg/custom-team
+
+# Test with defaults
+export PROJECT_NAME="environments/prod"  
+./teamauthz apply myorg/myrepo gce-digital-marketing-infrastructure/devops
 ```
 
-The test script validates the team authorization logic and ensures proper access control enforcement.
+### Debugging
 
-To debug the team authorization script, you can set the debug level:
+Enable debug logging to see detailed authorization flow:
+
+```bash
+export DEBUG=1
+./teamauthz apply myorg/myrepo myorg/team
+```
+
+For container-level debugging:
 
 ```yaml
 environment:
-  ENTRY_DEBUG_LEVEL: 1  # 1=info, 2=debug
+  DEBUG: 1  # Enables detailed teamauthz logging
 ```
 
 ## Usage
