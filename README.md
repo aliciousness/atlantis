@@ -19,10 +19,10 @@ Use the public docker image found [here](https://hub.docker.com/r/aliciousness/a
 Image is based on the official Atlantis image with additional configurations and tools.
 
 # Tags
-| Tag | Description |
-| :----: | --- |
-| latest | Latest version of Atlantis with our custom configurations |
-| version | Specific version for stable deployments |
+|   Tag   | Description                                               |
+| :-----: | --------------------------------------------------------- |
+| latest  | Latest version of Atlantis with our custom configurations |
+| version | Specific version for stable deployments                   |
 
 # Environment Variables
 Reference the following environment variables or config file [here](https://www.runatlantis.io/docs/server-configuration.html)
@@ -76,6 +76,32 @@ credential_source = EcsContainer
 ```
 
 To debug the `AWS_PROFILE` script you can set the `AWS_PROFILES_DEBUG_LEVEL` to 1 or 2 to see the output of the script (default 0).
+
+```yaml
+environment:
+  ENTRY_DEBUG_LEVEL: 1  # 1=info, 2=debug
+```
+
+## Team Authorization Script
+
+The container includes a team authorization script (`teamauthz`) that validates team membership for repository access control. This script can be used to enforce access policies based on GitHub team membership.
+
+### Usage
+
+The teamauthz script is located at [scripts/teamauthz](scripts/teamauthz) and can be executed to check team membership permissions for specific repositories or operations.
+
+### Testing
+
+To test the teamauthz functionality, use the test script located at [scripts/test/teamauthz](scripts/test/teamauthz):
+
+```bash
+# Run the teamauthz test script
+./scripts/test/teamauthz
+```
+
+The test script validates the team authorization logic and ensures proper access control enforcement.
+
+To debug the team authorization script, you can set the debug level:
 
 ```yaml
 environment:
