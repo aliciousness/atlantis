@@ -1,4 +1,4 @@
-FROM ghcr.io/runatlantis/atlantis:v0.36.0-alpine
+FROM ghcr.io/runatlantis/atlantis:v0.37.1-alpine
 LABEL maintainer="Richard Craddock craddock9richard@gmail.com"
 LABEL version=$VERSION
 ARG VERSION
