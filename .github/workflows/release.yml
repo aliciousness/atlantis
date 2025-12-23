@@ -47,4 +47,8 @@ jobs:
   trigger-badges:
     needs: atlantis
     uses: ./.github/workflows/badges.yml
+    permissions:
+      contents: write
+      id-token: write
     secrets: inherit
+
