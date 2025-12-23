@@ -9,6 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Extract version tag
+        id: extract_tag
+        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -25,12 +28,17 @@ jobs:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
-        run: |
-          docker buildx build \
-          --platform=linux/amd64,linux/arm64 \
-          --push \
-          --build-arg VERSION=${GITHUB_REF##*/v} \
-          --tag=aliciousness/atlantis:${GITHUB_REF##*/v} \
-          --tag=aliciousness/atlantis:preleased \
-          .
+      - name: Build and push app
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64 
+          push: true
+          tags: |
+            "aliciousness/atlantis:${{ env.TAG }}"
+            "aliciousness/atlantis:prelease"
+          build-args: |
+            VERSION=${{ env.TAG }}
+          labels: |
+            maintainer="craddock9richard@gmail.com"
+            org.opencontainers.image.authors="craddock9richard@gmail.com"
