@@ -12,11 +12,6 @@ build VERSION="latest":
 # Run Atlantis locally with docker-compose
 up:
     @echo "Starting Atlantis with docker-compose..."
-    docker-compose up
-
-# Run Atlantis in the background
-up-detached:
-    @echo "Starting Atlantis in detached mode..."
     docker-compose up -d
 
 # Stop running containers
