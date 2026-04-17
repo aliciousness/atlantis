@@ -1,54 +1,116 @@
 name: Release Atlantis
 
 on:
-  release:
-    types: [released]
+  push:
+    branches: [main]
+    paths: [dockerfile]
+
+permissions:
+  contents: write
 
 jobs:
-  atlantis:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Extract version tag
-        id: extract_tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Extract version from dockerfile
+        id: version
+        run: |
+          VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
+          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+
+      - name: Check if release already exists
+        id: check_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.version.outputs.tag }}" &>/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch upstream release notes
+        if: steps.check_release.outputs.exists == 'false'
+        id: upstream_notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${TAG}" --jq '.body // ""' 2>/dev/null || echo "")
+          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${TAG}"
+
+          {
+            echo "body<<RELEASE_EOF"
+            echo "## Atlantis ${TAG}"
+            echo ""
+            echo "Automated release tracking [runatlantis/atlantis ${TAG}](${UPSTREAM_URL})."
+            echo ""
+            echo "### Upstream Changes"
+            echo ""
+            if [ -n "$UPSTREAM_BODY" ]; then
+              echo "$UPSTREAM_BODY"
+            else
+              echo "See [upstream release notes](${UPSTREAM_URL})."
+            fi
+            echo ""
+            echo "### Image"
+            echo ""
+            echo "\`\`\`"
+            echo "docker pull aliciousness/atlantis:${TAG}"
+            echo "\`\`\`"
+            echo "RELEASE_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        if: steps.check_release.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --title "${{ steps.version.outputs.tag }}" \
+            --notes "${{ steps.upstream_notes.outputs.body }}"
 
       - name: Set up QEMU
+        if: steps.check_release.outputs.exists == 'false'
         uses: docker/setup-qemu-action@v3
 
       - name: Setup Docker Buildx
+        if: steps.check_release.outputs.exists == 'false'
         uses: docker/setup-buildx-action@v3
         with:
           platforms: linux/amd64,linux/arm64
           use: true
 
       - name: Login to DockerHub
+        if: steps.check_release.outputs.exists == 'false'
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push app
+        if: steps.check_release.outputs.exists == 'false'
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64 
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            "aliciousness/atlantis:${{ env.TAG }}"
+            "aliciousness/atlantis:${{ steps.version.outputs.tag }}"
             "aliciousness/atlantis:latest"
           build-args: |
-            VERSION=${{ env.TAG }}
+            VERSION=${{ steps.version.outputs.tag }}
           labels: |
             maintainer="craddock9richard@gmail.com"
             org.opencontainers.image.authors="craddock9richard@gmail.com"
 
-
   trigger-badges:
-    needs: atlantis
+    needs: release
     uses: ./.github/workflows/badges.yml
     permissions:
       contents: write
       id-token: write
     secrets: inherit
-

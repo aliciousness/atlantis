@@ -195,8 +195,29 @@ repo-config: "/home/atlantis/atlantis.yaml"
 
 For all available configuration options, refer to the [Atlantis Server Configuration Documentation](https://www.runatlantis.io/docs/server-configuration.html).
 
-To set a new release of the image you will need to fork the repo set the GH variable/secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
-and create a new GH release with a tagged version that will trigger the workflow
+## Automated Release Pipeline
+
+This project automatically tracks upstream [runatlantis/atlantis](https://github.com/runatlantis/atlantis) releases and publishes matching Docker images.
+
+### How It Works
+
+1. A scheduled workflow polls the latest stable upstream release every other day
+2. When a new version is detected, it updates the `FROM` image in the dockerfile and commits to `main`
+3. The push to `main` triggers the release workflow which:
+   - Creates a GitHub release with the matching version tag
+   - Populates release notes with upstream changelog and a `docker pull` command
+   - Builds and pushes multi-arch Docker images to DockerHub
+
+No manual intervention is required. The pipeline can also be triggered manually via `workflow_dispatch` on the check-upstream workflow.
+
+### Requirements
+
+Set the following GitHub repository variables and secrets:
+
+| Name | Type | Description |
+|------|------|-------------|
+| `DOCKERHUB_USERNAME` | Variable | DockerHub username |
+| `DOCKERHUB_TOKEN` | Secret | DockerHub access token |
 
 ## Contribution
 We welcome contributions! Here are some guidelines to get started:

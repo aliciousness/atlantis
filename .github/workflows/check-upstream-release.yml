@@ -1,0 +1,49 @@
+name: Check Upstream Atlantis Release
+
+on:
+  schedule:
+    # Every other day at 10:00 UTC (roughly 3am Arizona time)
+    - cron: "0 10 */2 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-upstream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Get current version from dockerfile
+        id: current
+        run: |
+          CURRENT=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
+          echo "version=$CURRENT" >> "$GITHUB_OUTPUT"
+          echo "Current version: $CURRENT"
+
+      - name: Get latest stable upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          LATEST=$(gh api repos/runatlantis/atlantis/releases/latest --jq '.tag_name')
+          echo "version=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream version: $LATEST"
+
+      - name: Update dockerfile and commit
+        if: steps.current.outputs.version != steps.upstream.outputs.version
+        env:
+          CURRENT_VERSION: ${{ steps.current.outputs.version }}
+          UPSTREAM_VERSION: ${{ steps.upstream.outputs.version }}
+        run: |
+          echo "Updating FROM $CURRENT_VERSION -> $UPSTREAM_VERSION"
+          sed -i "s|ghcr.io/runatlantis/atlantis:${CURRENT_VERSION}-alpine|ghcr.io/runatlantis/atlantis:${UPSTREAM_VERSION}-alpine|" dockerfile
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add dockerfile
+          git commit -m "chore: bump atlantis to ${UPSTREAM_VERSION}"
+          git push origin main
