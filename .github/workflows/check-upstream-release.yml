@@ -44,6 +44,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main
           git add dockerfile
           git commit -m "chore: bump atlantis to ${UPSTREAM_VERSION}"
           git push origin main
