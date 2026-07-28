@@ -55,12 +55,6 @@ jobs:
             else
               echo "See [upstream release notes](${UPSTREAM_URL})."
             fi
-            echo ""
-            echo "### Image"
-            echo ""
-            echo "\`\`\`"
-            echo "docker pull aliciousness/atlantis:${TAG}"
-            echo "\`\`\`"
             echo "RELEASE_EOF"
           } >> "$GITHUB_OUTPUT"
 
