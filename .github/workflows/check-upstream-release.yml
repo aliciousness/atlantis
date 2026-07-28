@@ -13,9 +13,17 @@ jobs:
   check-upstream:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 #3.2.0
+        with:
+          client-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a #7.0.1
         with:
           ref: main
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Get current version from dockerfile
         id: current
@@ -38,13 +46,43 @@ jobs:
         env:
           CURRENT_VERSION: ${{ steps.current.outputs.version }}
           UPSTREAM_VERSION: ${{ steps.upstream.outputs.version }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           echo "Updating FROM $CURRENT_VERSION -> $UPSTREAM_VERSION"
           sed -i "s|ghcr.io/runatlantis/atlantis:${CURRENT_VERSION}-alpine|ghcr.io/runatlantis/atlantis:${UPSTREAM_VERSION}-alpine|" dockerfile
 
+          # Fetch upstream release notes
+          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${UPSTREAM_VERSION}" --jq '.body // ""' 2>/dev/null || echo "")
+          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${UPSTREAM_VERSION}"
+          
+          # Strip 'v' prefix for version header
+          VERSION_NO_V="${UPSTREAM_VERSION#v}"
+          CURRENT_NO_V="${CURRENT_VERSION#v}"
+          
+          # Get current date in YYYY-MM-DD format
+          DATE=$(date +%Y-%m-%d)
+          
+          # Insert the new entry after line 5 (after "The format is based on...")
+          {
+            head -n 5 CHANGELOG.md
+            echo ""
+            echo "## [${VERSION_NO_V}] - ${DATE}"
+            echo ""
+            echo "### Changed"
+            echo ""
+            echo "- Upgraded base Atlantis Docker image from \`${CURRENT_VERSION}-alpine\` to \`${UPSTREAM_VERSION}-alpine\` (automated upstream tracking)"
+            echo "  - See [upstream release notes](${UPSTREAM_URL})"
+            echo ""
+            tail -n +6 CHANGELOG.md
+          } > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
+          
+          # Add new comparison link at the top of the comparison links section
+          # Insert before the current latest version link
+          sed -i "/^\[${CURRENT_NO_V}\]:/i [${VERSION_NO_V}]: https://github.com/aliciousness/atlantis/compare/${CURRENT_VERSION}...${UPSTREAM_VERSION}" CHANGELOG.md
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main
-          git add dockerfile
+          git add dockerfile CHANGELOG.md
           git commit -m "chore: bump atlantis to ${UPSTREAM_VERSION}"
           git push origin main

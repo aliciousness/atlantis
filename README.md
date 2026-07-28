@@ -218,6 +218,10 @@ Set the following GitHub repository variables and secrets:
 |------|------|-------------|
 | `DOCKERHUB_USERNAME` | Variable | DockerHub username |
 | `DOCKERHUB_TOKEN` | Secret | DockerHub access token |
+| `APP_ID` | Variable | GitHub App ID for automated releases |
+| `APP_PRIVATE_KEY` | Secret | GitHub App private key for automated releases |
+
+**Note on GitHub App:** A GitHub App is required instead of `GITHUB_TOKEN` because only GitHub App tokens can trigger downstream workflows. The standard `GITHUB_TOKEN` does not trigger workflow runs, which would prevent the release workflow from executing when the upstream version check commits changes to `main`.
 
 ## Contribution
 We welcome contributions! Here are some guidelines to get started:

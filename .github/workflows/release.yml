@@ -3,7 +3,7 @@ name: Release Atlantis
 on:
   push:
     branches: [main]
-    paths: [dockerfile]
+    paths: [dockerfile, CHANGELOG.md]
 
 permissions:
   contents: write
@@ -69,9 +69,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --title "${{ steps.version.outputs.tag }}" \
-            --notes "${{ steps.upstream_notes.outputs.body }}"
+          TAG="${{ steps.version.outputs.tag }}"
+          UPSTREAM_BODY="${{ steps.upstream_notes.outputs.body }}"
+
+          # Construct combined body with upstream notes and separator for auto-generated section
+          COMBINED_BODY="${UPSTREAM_BODY}
+
+          ### What's Changed in This Image
+          "
+
+          # Create release via GitHub API with generate_release_notes to append auto-generated notes
+          gh api repos/aliciousness/atlantis/releases \
+            -f tag_name="$TAG" \
+            -f name="$TAG" \
+            -f body="$COMBINED_BODY" \
+            -F generate_release_notes=true
 
       - name: Set up QEMU
         if: steps.check_release.outputs.exists == 'false'

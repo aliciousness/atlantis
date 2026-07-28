@@ -4,6 +4,48 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.46.0] - 2026-06-30
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.45.0-alpine` to `v0.46.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.46.0)
+
+## [0.45.0] - 2026-06-28
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.44.1-alpine` to `v0.45.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.45.0)
+
+## [0.44.1] - 2026-06-26
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.44.0-alpine` to `v0.44.1-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.44.1)
+
+## [0.44.0] - 2026-06-10
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.43.0-alpine` to `v0.44.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.44.0)
+
+## [0.43.0] - 2026-05-05
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.42.0-alpine` to `v0.43.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.43.0)
+
+## [0.42.0] - 2026-04-21
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.41.0-alpine` to `v0.42.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.42.0)
+
 ## [0.41.0] - 2026-04-17
 
 ### Fixed
@@ -123,6 +165,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Dockerfile based on official Atlantis image
 - CI/CD release workflow
 
+[0.46.0]: https://github.com/aliciousness/atlantis/compare/v0.45.0...v0.46.0
+[0.45.0]: https://github.com/aliciousness/atlantis/compare/v0.44.1...v0.45.0
+[0.44.1]: https://github.com/aliciousness/atlantis/compare/v0.44.0...v0.44.1
+[0.44.0]: https://github.com/aliciousness/atlantis/compare/v0.43.0...v0.44.0
+[0.43.0]: https://github.com/aliciousness/atlantis/compare/v0.42.0...v0.43.0
+[0.42.0]: https://github.com/aliciousness/atlantis/compare/v0.41.0...v0.42.0
 [0.41.0]: https://github.com/aliciousness/atlantis/compare/v0.38.0.1...v0.41.0
 [0.38.0.1]: https://github.com/aliciousness/atlantis/compare/v0.38.0...v0.38.0.1
 [0.38.0]: https://github.com/aliciousness/atlantis/compare/v0.36.0.1...v0.38.0
