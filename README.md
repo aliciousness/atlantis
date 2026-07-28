@@ -20,7 +20,7 @@ Image is based on the official Atlantis image with additional configurations and
 
 # Tags
 |   Tag   | Description                                               |
-| :-----: | --------------------------------------------------------- |
+|:-------:|-----------------------------------------------------------|
 | latest  | Latest version of Atlantis with our custom configurations |
 | version | Specific version for stable deployments                   |
 
@@ -117,7 +117,7 @@ team_authz:
 ### Access Rules
 
 | Command  | Project Pattern | Default Teams                   | Configurable     |
-| -------- | --------------- | ------------------------------- | ---------------- |
+|----------|-----------------|---------------------------------|------------------|
 | `apply`  | `*prod*`        | `devops`, `tf_policy_approvers` | ✅ Via `args`     |
 | `apply`  | `*dev*`         | `devops`, `Trainee`             | ❌ Hardcoded      |
 | `plan`   | `*`             | Anyone                          | ❌ Always allowed |
@@ -214,12 +214,12 @@ No manual intervention is required. The pipeline can also be triggered manually 
 
 Set the following GitHub repository variables and secrets:
 
-| Name | Type | Description |
-|------|------|-------------|
-| `DOCKERHUB_USERNAME` | Variable | DockerHub username |
-| `DOCKERHUB_TOKEN` | Secret | DockerHub access token |
-| `APP_ID` | Variable | GitHub App ID for automated releases |
-| `APP_PRIVATE_KEY` | Secret | GitHub App private key for automated releases |
+| Name                 | Type     | Description                                   |
+|----------------------|----------|-----------------------------------------------|
+| `DOCKERHUB_USERNAME` | Variable | DockerHub username                            |
+| `DOCKERHUB_TOKEN`    | Secret   | DockerHub access token                        |
+| `APP_ID`             | Variable | GitHub App ID for automated releases          |
+| `APP_PRIVATE_KEY`    | Secret   | GitHub App private key for automated releases |
 
 **Note on GitHub App:** A GitHub App is required instead of `GITHUB_TOKEN` because only GitHub App tokens can trigger downstream workflows. The standard `GITHUB_TOKEN` does not trigger workflow runs, which would prevent the release workflow from executing when the upstream version check commits changes to `main`.
 
@@ -233,4 +233,4 @@ Push to the branch: git push origin my-feature-branch
 Create a pull request.
 
 ## License
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU General Public License v3.0. See the LICENSE file for details.
