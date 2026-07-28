@@ -13,7 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a #7.0.1
+        with:
+          fetch-depth: 2
+      
+      - name: Check both files modified
+        id: check_files
+        run: |
+          # Get list of files modified in the push
+          MODIFIED_FILES=$(git diff --name-only HEAD^..HEAD)
+          echo "Modified files: $MODIFIED_FILES"
+          
+          # Check if both dockerfile AND CHANGELOG.md were modified
+          if echo "$MODIFIED_FILES" | grep -q "^dockerfile$" && echo "$MODIFIED_FILES" | grep -q "^CHANGELOG.md$"; then
+            echo "both_modified=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Both dockerfile and CHANGELOG.md were modified"
+          else
+            echo "both_modified=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Both files must be modified together. Skipping release."
+          fi
+      
       - name: Extract version from dockerfile
+        if: steps.check_files.outputs.both_modified == 'true'
         id: version
         run: |
           VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
@@ -21,6 +41,7 @@ jobs:
           echo "Detected version: $VERSION"
 
       - name: Check if release already exists
+        if: steps.check_files.outputs.both_modified == 'true'
         id: check_release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,7 +53,7 @@ jobs:
           fi
 
       - name: Fetch upstream release notes
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         id: upstream_notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,7 +79,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -79,25 +100,25 @@ jobs:
             -F generate_release_notes=true
 
       - name: Set up QEMU
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/setup-qemu-action@v3
 
       - name: Setup Docker Buildx
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/setup-buildx-action@v3
         with:
           platforms: linux/amd64,linux/arm64
           use: true
 
       - name: Login to DockerHub
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push app
-        if: steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/build-push-action@v5
         with:
           context: .
