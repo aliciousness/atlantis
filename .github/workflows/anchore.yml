@@ -32,15 +32,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Check out the code
-      uses: actions/checkout@v4
+      uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a #7.0.1
     - name: build local container
-      uses: docker/build-push-action@v6
+      uses: docker/build-push-action@cb941d0b895b09c17fa011d41c411b33c752cf28 #7.3.0
       with:
         tags: localbuild/testimage:latest
         push: false
         load: true
     - name: Run the Anchore Grype scan action
-      uses: anchore/scan-action@v5.2.1
+      uses: anchore/scan-action@ac02c2cca96bd43004ad85e5fc951721f0a623ea #v7.4.0
       id: scan
       with:
         image: "localbuild/testimage:latest"
@@ -48,6 +48,6 @@ jobs:
         # severity-cutoff: critical
         only-fixed: true
     - name: Upload vulnerability report
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b #v4
       with:
         sarif_file: ${{ steps.scan.outputs.sarif }}

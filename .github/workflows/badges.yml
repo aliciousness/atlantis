@@ -18,9 +18,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a #7.0.1
       - name: Get Docker Pulls and Image Size
         run: |
           REPO_NAME="${{ github.repository }}"
@@ -33,7 +31,7 @@ jobs:
           echo "IMAGE_SIZE=$(echo "$SIZE / 1048576" | bc) MB" >> $GITHUB_ENV
 
       - name: Check latest release and get badge URL
-        uses: aliciousness/ACTION-latest-release-badge@main
+        uses: aliciousness/ACTION-latest-release-badge@b0b7786309aa4649b6eeb9962a6886667edf6cf7 #v1.1.0
         id: check_release
         with:
           repo: ${{ github.repository }}
