@@ -82,6 +82,34 @@ environment:
   ENTRY_DEBUG_LEVEL: 1  # 1=info, 2=debug
 ```
 
+## Optional Wiz CLI IaC Scanning
+
+The container includes integrated [Wiz CLI](https://www.wiz.io/) for Infrastructure as Code security scanning during Terraform workflows. To use it, provide a JSON object through the `WIZ_CONFIG` environment variable:
+
+```yaml
+environment:
+  WIZ_CONFIG: '{
+    "auth": {
+      "client_id": "wiz-atlantis-prod",
+      "client_secret": "your-wiz-secret",
+      "api_url": "https://api.us20.app.wiz.io"
+    },
+    "scan": {
+      "path": "./",
+      "policies": "TerraformBestPractices"
+    },
+    "behavior": {
+      "block_on_failure": false
+    }
+  }'
+```
+
+This enables automated security scanning during Terraform plan/apply workflows. By default, violations are reported but do not block workflows (`block_on_failure: false`).
+
+To debug the Wiz integration you can set the `DEBUG` environment variable to 1.
+
+For full documentation including workflow integration, exit codes, and troubleshooting, see [docs/wiz-integration.md](docs/wiz-integration.md).
+
 ## Team Authorization Script
 
 The container includes a configurable team authorization script (`teamauthz`) that validates team membership for repository access control. This script enforces access policies based on GitHub team membership and supports both default and custom team configurations.
