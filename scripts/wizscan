@@ -1,0 +1,335 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+debug() {
+    if [[ "${DEBUG:-0}" == "1" ]]; then
+        echo "[DEBUG] $*" >&2
+    fi
+}
+
+usage() {
+    cat <<'EOF'
+Usage: wizscan [options]
+
+Wrapper for Wiz CLI IaC scanning with Atlantis-friendly markdown output.
+
+Options:
+  --path <dir>            Scan path (default: WIZ_SCAN_PATH or ".")
+  --policies <name>       Policy set name (default: WIZ_POLICIES)
+  --types <type>          IaC type(s) (default: WIZ_SCAN_TYPES or "Terraform")
+  --severity <level>      Severity filter (default: WIZ_SEVERITY)
+  --output-file <path>    Wiz output file path (default: WIZ_OUTPUT_FILE)
+  --output-format <fmt>   Output format (default: WIZ_OUTPUT_FORMAT or "json")
+  --block                 Block on violations (exit 1 on exit code 4)
+  --no-block              Warn on violations (exit 0 on exit code 4)
+  --help                  Show this help message
+
+Precedence:
+  CLI flags > WIZ_CONFIG JSON > individual env vars
+EOF
+}
+
+normalize_bool() {
+    case "${1:-false}" in
+        1|true|TRUE|yes|YES|on|ON) echo "true" ;;
+        *) echo "false" ;;
+    esac
+}
+
+read_wiz_config_key() {
+    local key="$1"
+
+    if [[ -z "${WIZ_CONFIG:-}" ]]; then
+        return 1
+    fi
+
+    local raw_value
+    # Use jq to parse WIZ_CONFIG and extract the key
+    # -r: raw output (no JSON quotes)
+    # --arg: pass bash variable as jq variable
+    # has($k): check if key exists
+    # .[$k] | select(. != null): extract value only if not null
+    # empty: output nothing if key doesn't exist or is null
+    raw_value=$(echo "${WIZ_CONFIG}" | jq -r --arg k "$key" 'if has($k) and .[$k] != null then .[$k] else empty end' 2>/dev/null) || return 1
+
+    # jq returns empty string for missing keys or null values
+    if [[ -z "$raw_value" ]]; then
+        return 1
+    fi
+
+    # Output the value (jq already handles boolean-to-string conversion)
+    printf '%s' "$raw_value"
+    return 0
+}
+
+first_wiz_config_value() {
+    local value=""
+    local key
+    for key in "$@"; do
+        if value="$(read_wiz_config_key "$key" 2>/dev/null)"; then
+            printf '%s' "$value"
+            return 0
+        fi
+    done
+    return 1
+}
+
+emit_header() {
+    echo "## 🔍 Wiz IaC Security Scan Results"
+    echo
+}
+
+emit_findings_markdown() {
+    local output_file="$1"
+
+    # Read file content
+    local raw=""
+    if [[ -f "$output_file" ]]; then
+        raw=$(cat "$output_file")
+    fi
+
+    # Handle empty
+    if [[ -z "$raw" ]]; then
+        echo "No findings output available from wizcli."
+        return 0
+    fi
+
+    # Try to parse as JSON
+    if ! echo "$raw" | jq empty 2>/dev/null; then
+        # Not valid JSON — dump as raw text
+        echo '```text'
+        echo "$raw"
+        echo '```'
+        return 0
+    fi
+
+    # Extract findings array (try findings, results, issues)
+    local findings_json
+    findings_json=$(echo "$raw" | jq '
+        if type == "array" then .
+        elif type == "object" then (.findings // .results // .issues // null)
+        else null end
+    ')
+
+    if [[ "$findings_json" == "null" ]] || [[ "$(echo "$findings_json" | jq 'length')" -eq 0 ]]; then
+        echo '```json'
+        echo "$raw" | jq '.'
+        echo '```'
+        return 0
+    fi
+
+    # Render markdown table
+    echo "| Severity | Issue | File | Line |"
+    echo "|----------|-------|------|------|"
+
+    echo "$findings_json" | jq -r '.[] |
+        (if type != "object" then {"title": tostring} else . end) |
+        [
+            ((.severity // .severityLevel // .level // "UNKNOWN") | ascii_upcase),
+            ((.title // .name // .message // .description // "Untitled finding") | gsub("\\|"; "\\|") | gsub("\n"; " ")),
+            ((.file // .filePath // .filename // .path // "") | gsub("\\|"; "\\|") | gsub("\n"; " ")),
+            ((.line // .lineNumber // "") | tostring | gsub("\\|"; "\\|"))
+        ] | "| " + join(" | ") + " |"'
+
+    # Summary with severity counts
+    local total
+    total=$(echo "$findings_json" | jq 'length')
+    local summary
+    summary=$(echo "$findings_json" | jq -r '
+        [.[] | (if type != "object" then {"severity":"UNKNOWN"} else . end) |
+         (.severity // .severityLevel // .level // "UNKNOWN") | ascii_upcase] |
+        group_by(.) | map({key: .[0], value: length}) |
+        sort_by(.key) | map("\(.value) \(.key)") | join(", ")
+    ')
+    echo ""
+    echo "Total findings: ${total}$(if [[ -n "$summary" ]]; then echo " ($summary)"; fi)"
+}
+
+run_scan() {
+    set +e
+    "${SCAN_CMD[@]}" >"$SCAN_STDOUT" 2>&1
+    SCAN_EXIT_CODE=$?
+    set -e
+}
+
+run_auth() {
+    if [[ -z "${WIZ_CLIENT_ID:-}" || -z "${WIZ_CLIENT_SECRET:-}" ]]; then
+        return 1
+    fi
+
+    set +e
+    wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET" >/dev/null 2>&1
+    local rc=$?
+    set -e
+    return "$rc"
+}
+
+main() {
+    local scan_path="${WIZ_SCAN_PATH:-.}"
+    local scan_policies="${WIZ_POLICIES:-}"
+    local scan_types="${WIZ_SCAN_TYPES:-Terraform}"
+    local scan_severity="${WIZ_SEVERITY:-}"
+    local output_file="${WIZ_OUTPUT_FILE:-}"
+    local output_format="${WIZ_OUTPUT_FORMAT:-json}"
+    local block_on_failure
+    block_on_failure="$(normalize_bool "${WIZ_BLOCK_ON_FAILURE:-false}")"
+
+    local cfg_val
+    if cfg_val="$(first_wiz_config_value path scan_path WIZ_SCAN_PATH 2>/dev/null)"; then
+        scan_path="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value policies scan_policies WIZ_POLICIES 2>/dev/null)"; then
+        scan_policies="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value types scan_types WIZ_SCAN_TYPES 2>/dev/null)"; then
+        scan_types="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value severity scan_severity WIZ_SEVERITY 2>/dev/null)"; then
+        scan_severity="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value output_file outputFile WIZ_OUTPUT_FILE 2>/dev/null)"; then
+        output_file="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value output_format outputFormat WIZ_OUTPUT_FORMAT 2>/dev/null)"; then
+        output_format="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value block_on_failure blockOnFailure WIZ_BLOCK_ON_FAILURE 2>/dev/null)"; then
+        block_on_failure="$(normalize_bool "$cfg_val")"
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --path)
+                [[ $# -ge 2 ]] || { echo "Error: --path requires a value" >&2; exit 1; }
+                scan_path="$2"
+                shift 2
+                ;;
+            --policies)
+                [[ $# -ge 2 ]] || { echo "Error: --policies requires a value" >&2; exit 1; }
+                scan_policies="$2"
+                shift 2
+                ;;
+            --types)
+                [[ $# -ge 2 ]] || { echo "Error: --types requires a value" >&2; exit 1; }
+                scan_types="$2"
+                shift 2
+                ;;
+            --severity)
+                [[ $# -ge 2 ]] || { echo "Error: --severity requires a value" >&2; exit 1; }
+                scan_severity="$2"
+                shift 2
+                ;;
+            --output-file)
+                [[ $# -ge 2 ]] || { echo "Error: --output-file requires a value" >&2; exit 1; }
+                output_file="$2"
+                shift 2
+                ;;
+            --output-format)
+                [[ $# -ge 2 ]] || { echo "Error: --output-format requires a value" >&2; exit 1; }
+                output_format="$2"
+                shift 2
+                ;;
+            --block)
+                block_on_failure="true"
+                shift
+                ;;
+            --no-block)
+                block_on_failure="false"
+                shift
+                ;;
+            --help)
+                usage
+                exit 0
+                ;;
+            *)
+                echo "Error: Unknown option '$1'" >&2
+                usage >&2
+                exit 1
+                ;;
+        esac
+    done
+
+    local -a cmd=("wizcli" "iac" "scan" "--path" "$scan_path" "--types" "$scan_types")
+    if [[ -n "$scan_policies" ]]; then
+        cmd+=("--policies" "$scan_policies")
+    fi
+    if [[ -n "$scan_severity" ]]; then
+        cmd+=("--severity" "$scan_severity")
+    fi
+    if [[ -n "$output_file" ]]; then
+        if [[ "$output_format" == "json" ]]; then
+            cmd+=("--json-output-file" "$output_file")
+        else
+            cmd+=("--output-file" "$output_file" "--output-format" "$output_format")
+        fi
+    fi
+
+    debug "Running Wiz scan command: ${cmd[*]}"
+    debug "block_on_failure=$block_on_failure"
+
+    SCAN_CMD=("${cmd[@]}")
+    SCAN_STDOUT="$(mktemp)"
+    trap 'rm -f "$SCAN_STDOUT"' EXIT
+
+    run_scan
+
+    if [[ "$SCAN_EXIT_CODE" -eq 3 ]]; then
+        debug "Authentication failed (exit 3), attempting re-authentication"
+        if run_auth; then
+            run_scan
+        else
+            echo "Error: Authentication failed"
+            exit 1
+        fi
+
+        if [[ "$SCAN_EXIT_CODE" -eq 3 ]]; then
+            echo "Error: Authentication failed"
+            exit 1
+        fi
+    fi
+
+    case "$SCAN_EXIT_CODE" in
+        0)
+            emit_header
+            echo "✅ **No security issues found**"
+            echo
+            echo "✓ No issues found"
+            echo
+            printf 'Scanned path: `%s`\n' "$scan_path"
+            echo "Scan completed successfully."
+            exit 0
+            ;;
+        4)
+            local findings_source="$SCAN_STDOUT"
+            if [[ -n "$output_file" && -f "$output_file" ]]; then
+                findings_source="$output_file"
+            fi
+
+            emit_header
+            if [[ "$block_on_failure" == "true" ]]; then
+                echo "❌ **Security issues detected - BLOCKING**"
+            else
+                echo "⚠️ **Security issues detected** (warn mode - not blocking)"
+            fi
+            echo
+            emit_findings_markdown "$findings_source"
+            echo
+            if [[ "$block_on_failure" == "true" ]]; then
+                exit 1
+            fi
+            echo 'To block on these findings, set `WIZ_BLOCK_ON_FAILURE=true` or use `--block` flag.'
+            exit 0
+            ;;
+        1|2)
+            echo "Error: Scan failed to execute"
+            exit 1
+            ;;
+        *)
+            echo "Error: Scan failed to execute (exit code $SCAN_EXIT_CODE)"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"
