@@ -122,7 +122,62 @@ When multiple configuration sources are provided, the following precedence appli
 2. **WIZ_CONFIG JSON** (parsed and exported as env vars)
 3. **Individual Environment Variables** (e.g., `WIZ_CLIENT_ID`, `WIZ_SCAN_PATH`)
 
+For auth credentials specifically (`client_id` / `client_secret`):
+- If `WIZ_CONFIG` JSON is provided but `auth.client_id` or `auth.client_secret` are missing/empty, the script falls back to `WIZ_CLIENT_ID` / `WIZ_CLIENT_SECRET` environment variables.
+
 **Example:** If you set `WIZ_SCAN_PATH=/env/path` and also provide `{"scan": {"path": "/json/path"}}` in `WIZ_CONFIG`, the JSON value (`/json/path`) takes precedence. If you then run `wizscan --path /cli/path`, the CLI flag value (`/cli/path`) wins.
+
+### AWS Secret Resolution
+
+After credentials are resolved (from JSON or env vars), the script checks if either `client_id` or `client_secret` is an AWS ARN. If so, it fetches the actual value at runtime using the AWS CLI.
+
+Supported ARN formats:
+
+| Service | ARN Pattern | AWS CLI Call |
+|---------|-------------|--------------|
+| SSM Parameter Store | `arn:aws:ssm:<region>:<account>:parameter/<name>` | `aws ssm get-parameter --with-decryption` |
+| Secrets Manager | `arn:aws:secretsmanager:<region>:<account>:secret:<name>` | `aws secretsmanager get-secret-value` |
+
+#### Examples
+
+Store credentials in SSM Parameter Store:
+```yaml
+environment:
+  WIZ_CLIENT_ID: "arn:aws:ssm:us-east-1:123456789012:parameter/atlantis/wiz-client-id"
+  WIZ_CLIENT_SECRET: "arn:aws:ssm:us-east-1:123456789012:parameter/atlantis/wiz-client-secret"
+```
+
+Store credentials in Secrets Manager:
+```yaml
+environment:
+  WIZ_CLIENT_ID: "wiz-atlantis-prod"
+  WIZ_CLIENT_SECRET: "arn:aws:secretsmanager:us-east-1:123456789012:secret:atlantis/wiz-secret-AbCdEf"
+```
+
+Use ARNs inside `WIZ_CONFIG` JSON:
+```yaml
+environment:
+  WIZ_CONFIG: '{
+    "auth": {
+      "client_id": "arn:aws:ssm:us-east-1:123456789012:parameter/wiz/client-id",
+      "client_secret": "arn:aws:secretsmanager:us-east-1:123456789012:secret:wiz/secret-XyZ123"
+    },
+    "scan": { "path": "./" }
+  }'
+```
+
+Mix ARNs with env var fallback (JSON omits auth, env vars provide ARNs):
+```yaml
+environment:
+  WIZ_CONFIG: '{"scan": {"path": "./", "policies": "TerraformBestPractices"}}'
+  WIZ_CLIENT_ID: "arn:aws:ssm:us-east-1:123456789012:parameter/wiz/client-id"
+  WIZ_CLIENT_SECRET: "arn:aws:secretsmanager:us-east-1:123456789012:secret:wiz/secret-AbCdEf"
+```
+
+**Requirements:**
+- The container must have AWS CLI available and configured (via IAM role, ECS task role, or `AWS_PROFILES`).
+- The IAM identity must have `ssm:GetParameter` and/or `secretsmanager:GetSecretValue` permissions for the referenced resources.
+- If resolution fails, the script exits with an error and Wiz setup is aborted.
 
 ## Workflow Integration
 

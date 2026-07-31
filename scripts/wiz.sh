@@ -2,6 +2,11 @@
 # This script is used to set up Wiz CLI authentication for Atlantis
 # It looks for the env variable WIZ_CONFIG (JSON) or individual env vars (WIZ_CLIENT_ID, WIZ_CLIENT_SECRET, WIZ_API_URL)
 # and configures authentication, then pre-caches the auth token
+#
+# Credential resolution order:
+#   1. WIZ_CONFIG JSON (inline or file path) → auth.client_id / auth.client_secret
+#   2. Environment variables WIZ_CLIENT_ID / WIZ_CLIENT_SECRET (fallback if JSON fields empty)
+#   3. If resolved value is an SSM Parameter ARN or Secrets Manager ARN, fetch at runtime
 
 # Debug levels: 0=none, 1=info, 2=debug
 DEBUG_LEVEL=${ENTRY_DEBUG_LEVEL:-1}
@@ -32,6 +37,83 @@ mask_secret() {
     fi
 }
 
+# Resolve a secret value that may be an SSM Parameter ARN or Secrets Manager ARN.
+# If the value is a plain string (not an ARN), it is returned unchanged.
+# Supported ARN formats:
+#   arn:aws:ssm:<region>:<account>:parameter/<name>
+#   arn:aws:secretsmanager:<region>:<account>:secret:<name>
+resolve_secret() {
+    local value="$1"
+    local field_name="${2:-secret}"
+
+    if [ -z "$value" ]; then
+        echo ""
+        return 0
+    fi
+
+    # SSM Parameter ARN
+    if [[ "$value" == arn:aws:ssm:*:parameter/* ]]; then
+        debug 2 "Resolving $field_name from SSM Parameter: $value"
+        if ! command -v aws &>/dev/null; then
+            echo "Error: AWS CLI is required to resolve SSM parameter ARN for $field_name but 'aws' was not found in PATH" >&2
+            echo "Hint: Install the AWS CLI or provide the credential value directly instead of an ARN" >&2
+            return 1
+        fi
+        local resolved aws_stderr
+        aws_stderr=$(mktemp)
+        if ! resolved=$(aws ssm get-parameter --name "$value" --with-decryption --query 'Parameter.Value' --output text 2>"$aws_stderr"); then
+            echo "Error: Failed to resolve SSM parameter for $field_name" >&2
+            echo "  ARN: $value" >&2
+            echo "  AWS error: $(cat "$aws_stderr")" >&2
+            echo "  Hint: Verify the ARN is correct and that the container's IAM role has ssm:GetParameter permission" >&2
+            rm -f "$aws_stderr"
+            return 1
+        fi
+        rm -f "$aws_stderr"
+        if [ -z "$resolved" ] || [ "$resolved" = "None" ]; then
+            echo "Error: SSM parameter resolved to an empty value for $field_name" >&2
+            echo "  ARN: $value" >&2
+            echo "  Hint: Check that the SSM parameter exists and contains a non-empty value" >&2
+            return 1
+        fi
+        echo "$resolved"
+        return 0
+    fi
+
+    # Secrets Manager ARN
+    if [[ "$value" == arn:aws:secretsmanager:*:secret:* ]]; then
+        debug 2 "Resolving $field_name from Secrets Manager: $value"
+        if ! command -v aws &>/dev/null; then
+            echo "Error: AWS CLI is required to resolve Secrets Manager ARN for $field_name but 'aws' was not found in PATH" >&2
+            echo "Hint: Install the AWS CLI or provide the credential value directly instead of an ARN" >&2
+            return 1
+        fi
+        local resolved aws_stderr
+        aws_stderr=$(mktemp)
+        if ! resolved=$(aws secretsmanager get-secret-value --secret-id "$value" --query 'SecretString' --output text 2>"$aws_stderr"); then
+            echo "Error: Failed to resolve Secrets Manager secret for $field_name" >&2
+            echo "  ARN: $value" >&2
+            echo "  AWS error: $(cat "$aws_stderr")" >&2
+            echo "  Hint: Verify the ARN is correct and that the container's IAM role has secretsmanager:GetSecretValue permission" >&2
+            rm -f "$aws_stderr"
+            return 1
+        fi
+        rm -f "$aws_stderr"
+        if [ -z "$resolved" ] || [ "$resolved" = "None" ]; then
+            echo "Error: Secrets Manager secret resolved to an empty value for $field_name" >&2
+            echo "  ARN: $value" >&2
+            echo "  Hint: Check that the secret exists and contains a non-empty SecretString" >&2
+            return 1
+        fi
+        echo "$resolved"
+        return 0
+    fi
+
+    # Plain value — return as-is
+    echo "$value"
+    return 0
+}
+
 # Check if Wiz is configured via WIZ_CONFIG or direct env vars
 if [ -z "$WIZ_CONFIG" ] && [ -z "$WIZ_CLIENT_ID" ]; then
     info "Wiz not configured. Skipping."
@@ -57,10 +139,22 @@ if [ -n "$WIZ_CONFIG" ]; then
         exit 1
     fi
     
-    # Extract auth fields
-    WIZ_CLIENT_ID=$(echo "$cleaned_json" | jq -r '.auth.client_id // empty')
-    WIZ_CLIENT_SECRET=$(echo "$cleaned_json" | jq -r '.auth.client_secret // empty')
-    WIZ_API_URL=$(echo "$cleaned_json" | jq -r '.auth.api_url // empty')
+    # Extract auth fields from JSON
+    json_client_id=$(echo "$cleaned_json" | jq -r '.auth.client_id // empty')
+    json_client_secret=$(echo "$cleaned_json" | jq -r '.auth.client_secret // empty')
+    json_api_url=$(echo "$cleaned_json" | jq -r '.auth.api_url // empty')
+
+    # Use JSON values if present, otherwise fall back to env vars
+    WIZ_CLIENT_ID="${json_client_id:-$WIZ_CLIENT_ID}"
+    WIZ_CLIENT_SECRET="${json_client_secret:-$WIZ_CLIENT_SECRET}"
+    WIZ_API_URL="${json_api_url:-$WIZ_API_URL}"
+
+    if [ -z "$json_client_id" ] && [ -n "$WIZ_CLIENT_ID" ]; then
+        debug 2 "auth.client_id not in JSON, using WIZ_CLIENT_ID env var"
+    fi
+    if [ -z "$json_client_secret" ] && [ -n "$WIZ_CLIENT_SECRET" ]; then
+        debug 2 "auth.client_secret not in JSON, using WIZ_CLIENT_SECRET env var"
+    fi
     
     # Extract scan fields
     export WIZ_SCAN_PATH=$(echo "$cleaned_json" | jq -r '.scan.path // empty')
@@ -89,6 +183,16 @@ fi
 # Validate required auth fields
 if [ -z "$WIZ_CLIENT_ID" ] || [ -z "$WIZ_CLIENT_SECRET" ]; then
     echo "Error: WIZ_CLIENT_ID and WIZ_CLIENT_SECRET are required" >&2
+    exit 1
+fi
+
+# Resolve credentials from SSM Parameter Store or Secrets Manager if values are ARNs
+if ! WIZ_CLIENT_ID=$(resolve_secret "$WIZ_CLIENT_ID" "WIZ_CLIENT_ID"); then
+    echo "Error: Wiz setup aborted — could not resolve WIZ_CLIENT_ID. See above for details." >&2
+    exit 1
+fi
+if ! WIZ_CLIENT_SECRET=$(resolve_secret "$WIZ_CLIENT_SECRET" "WIZ_CLIENT_SECRET"); then
+    echo "Error: Wiz setup aborted — could not resolve WIZ_CLIENT_SECRET. See above for details." >&2
     exit 1
 fi
 
