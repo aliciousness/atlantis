@@ -48,6 +48,6 @@ jobs:
         # severity-cutoff: critical
         only-fixed: true
     - name: Upload vulnerability report
-      uses: github/codeql-action/upload-sarif@f0489abddd4e5e9dff53ed28a45b1d6f88978a1b #v4
+      uses: github/codeql-action/upload-sarif@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 #v4.37.3
       with:
         sarif_file: ${{ steps.scan.outputs.sarif }}
