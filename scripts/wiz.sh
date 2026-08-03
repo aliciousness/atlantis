@@ -117,7 +117,7 @@ resolve_secret() {
 # Check if Wiz is configured via WIZ_CONFIG or direct env vars
 if [ -z "$WIZ_CONFIG" ] && [ -z "$WIZ_CLIENT_ID" ]; then
     info "Wiz not configured. Skipping."
-    return 0
+    exit 0
 fi
 
 info "Setting up Wiz CLI authentication for Atlantis"
