@@ -39,8 +39,8 @@ case "\$1" in
         echo '{"token":"mock-token"}' > "\${WIZ_DIR:-/tmp/wiz}/auth.json"
         exit 0
         ;;
-    iac)
-        if [[ "\$2" == "scan" ]]; then
+    scan)
+        if [[ "\$2" == "dir" ]]; then
             exit_code="\${MOCK_SCAN_EXIT_CODE:-0}"
             case "\$exit_code" in
                 0)
@@ -750,7 +750,7 @@ test_wizscan_violations_block() {
     fi
 }
 
-test_wizscan_auth_failure_retry() {
+test_wizscan_auth_failure_error() {
     export MOCK_SCAN_EXIT_CODE=3
     export WIZ_CLIENT_ID="test-id"
     export WIZ_CLIENT_SECRET="test-secret"
@@ -761,11 +761,11 @@ test_wizscan_auth_failure_retry() {
     exit_code=$?
     set -e
     
-    if [[ $exit_code -ne 0 ]] && echo "$output" | grep -q "Authentication failed"; then
+    if [[ $exit_code -eq 1 ]] && echo "$output" | grep -q "Authentication failed"; then
         unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
         return 0
     else
-        echo "Auth retry test failed" >&2
+        echo "Auth failure error test failed (exit_code=$exit_code)" >&2
         unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
         return 1
     fi
@@ -1144,7 +1144,7 @@ run_test "wizscan - --help prints usage" test_wizscan_help
 run_test "wizscan - clean scan (exit 0)" test_wizscan_clean_scan
 run_test "wizscan - violations warn mode (exit 4 + no block)" test_wizscan_violations_warn
 run_test "wizscan - violations block mode (exit 4 + --block)" test_wizscan_violations_block
-run_test "wizscan - auth failure retry (exit 3)" test_wizscan_auth_failure_retry
+run_test "wizscan - auth failure error (exit 3)" test_wizscan_auth_failure_error
 run_test "wizscan - infrastructure error (exit 1)" test_wizscan_infra_error
 run_test "wizscan - infra error shows wizcli output" test_wizscan_infra_error_shows_wizcli_output
 run_test "wizscan - exit code 2 shows output" test_wizscan_exit_code_2_shows_output

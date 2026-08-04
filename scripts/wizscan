@@ -191,18 +191,6 @@ run_scan() {
     set -e
 }
 
-run_auth() {
-    if [[ -z "${WIZ_CLIENT_ID:-}" || -z "${WIZ_CLIENT_SECRET:-}" ]]; then
-        return 1
-    fi
-
-    set +e
-    wizcli auth --id "$WIZ_CLIENT_ID" --secret "$WIZ_CLIENT_SECRET" >/dev/null 2>&1
-    local rc=$?
-    set -e
-    return "$rc"
-}
-
 main() {
      local scan_path="${WIZ_SCAN_PATH:-.}"
      local scan_policies="${WIZ_POLICIES:-}"
@@ -279,7 +267,7 @@ main() {
         esac
     done
 
-     local -a cmd=("wizcli" "iac" "scan" "--path" "$scan_path" "--types" "$scan_types")
+     local -a cmd=("wizcli" "scan" "dir" "$scan_path" "--types" "$scan_types")
      if [[ -n "$scan_policies" ]]; then
          cmd+=("--policies" "$scan_policies")
      fi
@@ -297,18 +285,14 @@ main() {
     run_scan
 
     if [[ "$SCAN_EXIT_CODE" -eq 3 ]]; then
-        debug "Authentication failed (exit 3), attempting re-authentication"
-        if run_auth; then
-            run_scan
-        else
-            echo "Error: Authentication failed"
-            exit 1
-        fi
-
-        if [[ "$SCAN_EXIT_CODE" -eq 3 ]]; then
-            echo "Error: Authentication failed"
-            exit 1
-        fi
+        emit_header "error"
+        echo "❌ **Authentication failed**"
+        echo
+        echo "Verify WIZ_CLIENT_ID and WIZ_CLIENT_SECRET environment variables are set correctly."
+        echo
+        printf 'Scanned path: `%s`\n' "$scan_path"
+        emit_footer
+        exit 1
     fi
 
     case "$SCAN_EXIT_CODE" in

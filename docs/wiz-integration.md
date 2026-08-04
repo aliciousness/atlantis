@@ -12,7 +12,11 @@ This Atlantis Docker image includes integrated [Wiz CLI](https://www.wiz.io/) fo
 
 The integration consists of two components:
 - **`scripts/wiz.sh`**: Entrypoint script that sets up authentication and exports configuration
-- **`scripts/wizscan`**: Wrapper script that runs `wizcli iac scan` with Atlantis-friendly markdown output
+- **`scripts/wizscan`**: Wrapper script that runs `wizcli v1 scan dir` with Atlantis-friendly markdown output
+
+## Versions
+
+This integration uses wizcli v1 syntax (`wizcli scan dir`). The deprecated v0 syntax (`wizcli iac scan`) reached end of support on April 15, 2026.
 
 ## Configuration
 
@@ -196,11 +200,19 @@ workflows:
       steps:
       - init
       - plan
-      - run: wizscan --path $PLANFILE
-        description: "Wiz IaC Security Scan"
+      - show
+      - run: wizscan --path $SHOWFILE
+        description: "Wiz IaC Security Scan (Plan JSON)"
     apply:
       steps:
       - apply
+```
+
+**Alternative: Scan source files directly**
+
+```yaml
+- run: wizscan --path ./
+  description: "Wiz IaC Security Scan (Source)"
 ```
 
 #### Example 2: Scan on Apply (Block Mode)
@@ -297,7 +309,7 @@ The `wizscan` wrapper script uses the following exit codes:
 
 ### Exit Code 4: Violations Found (Special Handling)
 
-**Exit code 4 is NOT an error** - it indicates that `wizcli iac scan` successfully completed and found policy violations. The `wizscan` wrapper script handles this specially:
+**Exit code 4 is NOT an error** - it indicates that `wizcli scan dir` successfully completed and found policy violations. The `wizscan` wrapper script handles this specially:
 
 - **Warn Mode (default)**: Violations are displayed in markdown format, but the wrapper exits with code **0** (success) to allow the workflow to continue
 - **Block Mode**: Violations are displayed with a "BLOCKING" message, and the wrapper exits with code **1** (failure) to halt the workflow
@@ -336,13 +348,7 @@ Scanned path: `./`
 
 ### Re-Authentication Retry
 
-When `wizcli iac scan` exits with code **3** (authentication failure), the `wizscan` wrapper automatically:
-
-1. Runs `wizcli auth` to refresh the authentication token
-2. Retries the scan command once
-3. If the retry also fails, exits with code 1
-
-This handles transient authentication issues (e.g., expired tokens) without manual intervention.
+In wizcli v1, authentication uses `WIZ_CLIENT_ID` and `WIZ_CLIENT_SECRET` environment variables automatically during the scan command. If authentication fails (exit code 3), wizscan reports an error and exits — no retry is attempted because env-var auth failures indicate misconfiguration that won't resolve on retry.
 
 ## Troubleshooting
 
