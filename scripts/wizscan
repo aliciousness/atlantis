@@ -47,10 +47,17 @@ read_wiz_config_key() {
     # Use jq to parse WIZ_CONFIG and extract the key
     # -r: raw output (no JSON quotes)
     # --arg: pass bash variable as jq variable
-    # has($k): check if key exists
-    # .[$k] | select(. != null): extract value only if not null
-    # empty: output nothing if key doesn't exist or is null
-    raw_value=$(echo "${WIZ_CONFIG}" | jq -r --arg k "$key" 'if has($k) and .[$k] != null then .[$k] else empty end' 2>/dev/null) || return 1
+    # Support nested paths with dot notation (e.g., "scan.path")
+    # If key contains a dot, use getpath(split(".")); otherwise use has($k) and .[$k]
+    raw_value=$(echo "${WIZ_CONFIG}" | jq -r --arg k "$key" '
+        if ($k | contains(".")) then
+            # Nested path: convert dot notation to array and use getpath
+            getpath($k | split(".")) | select(. != null)
+        else
+            # Top-level key: use traditional has/access
+            if has($k) and .[$k] != null then .[$k] else empty end
+        end
+    ' 2>/dev/null) || return 1
 
     # jq returns empty string for missing keys or null values
     if [[ -z "$raw_value" ]]; then
@@ -75,8 +82,40 @@ first_wiz_config_value() {
 }
 
 emit_header() {
-    echo "## 🔍 Wiz IaC Security Scan Results"
+    local outcome="${1:-unknown}"
+    
+    case "$outcome" in
+        clean)
+            echo "<details>"
+            echo "<summary>✅ Wiz IaC Scan — No Issues</summary>"
+            echo
+            ;;
+        violations_warn)
+            echo "<details>"
+            echo "<summary>⚠️ Wiz IaC Scan — Issues Detected (warn)</summary>"
+            echo
+            ;;
+        violations_block)
+            echo "<details>"
+            echo "<summary>❌ Wiz IaC Scan — Issues Detected (BLOCKING)</summary>"
+            echo
+            ;;
+        error)
+            echo "<details>"
+            echo "<summary>💥 Wiz IaC Scan — Scan Failed</summary>"
+            echo
+            ;;
+        *)
+            echo "<details>"
+            echo "<summary>❓ Wiz IaC Scan — Unknown Status</summary>"
+            echo
+            ;;
+    esac
+}
+
+emit_footer() {
     echo
+    echo "</details>"
 }
 
 emit_findings_markdown() {
@@ -174,22 +213,22 @@ main() {
     block_on_failure="$(normalize_bool "${WIZ_BLOCK_ON_FAILURE:-false}")"
 
     local cfg_val
-    if cfg_val="$(first_wiz_config_value path scan_path WIZ_SCAN_PATH 2>/dev/null)"; then
+    if cfg_val="$(first_wiz_config_value "scan.path" "path" "scan_path" "WIZ_SCAN_PATH" 2>/dev/null)"; then
         scan_path="$cfg_val"
     fi
-    if cfg_val="$(first_wiz_config_value policies scan_policies WIZ_POLICIES 2>/dev/null)"; then
+    if cfg_val="$(first_wiz_config_value "scan.policies" "policies" "scan_policies" "WIZ_POLICIES" 2>/dev/null)"; then
         scan_policies="$cfg_val"
     fi
-     if cfg_val="$(first_wiz_config_value types scan_types WIZ_SCAN_TYPES 2>/dev/null)"; then
-         scan_types="$cfg_val"
-     fi
-     if cfg_val="$(first_wiz_config_value output_file outputFile WIZ_OUTPUT_FILE 2>/dev/null)"; then
+    if cfg_val="$(first_wiz_config_value "scan.types" "types" "scan_types" "WIZ_SCAN_TYPES" 2>/dev/null)"; then
+        scan_types="$cfg_val"
+    fi
+    if cfg_val="$(first_wiz_config_value "scan.output_file" "output_file" "outputFile" "WIZ_OUTPUT_FILE" 2>/dev/null)"; then
         output_file="$cfg_val"
     fi
-    if cfg_val="$(first_wiz_config_value output_format outputFormat WIZ_OUTPUT_FORMAT 2>/dev/null)"; then
+    if cfg_val="$(first_wiz_config_value "scan.output_format" "output_format" "outputFormat" "WIZ_OUTPUT_FORMAT" 2>/dev/null)"; then
         output_format="$cfg_val"
     fi
-    if cfg_val="$(first_wiz_config_value block_on_failure blockOnFailure WIZ_BLOCK_ON_FAILURE 2>/dev/null)"; then
+    if cfg_val="$(first_wiz_config_value "behavior.block_on_failure" "block_on_failure" "blockOnFailure" "WIZ_BLOCK_ON_FAILURE" 2>/dev/null)"; then
         block_on_failure="$(normalize_bool "$cfg_val")"
     fi
 
@@ -274,13 +313,14 @@ main() {
 
     case "$SCAN_EXIT_CODE" in
         0)
-            emit_header
+            emit_header "clean"
             echo "✅ **No security issues found**"
             echo
             echo "✓ No issues found"
             echo
             printf 'Scanned path: `%s`\n' "$scan_path"
             echo "Scan completed successfully."
+            emit_footer
             exit 0
             ;;
         4)
@@ -289,27 +329,66 @@ main() {
                 findings_source="$output_file"
             fi
 
-            emit_header
             if [[ "$block_on_failure" == "true" ]]; then
+                emit_header "violations_block"
                 echo "❌ **Security issues detected - BLOCKING**"
             else
+                emit_header "violations_warn"
                 echo "⚠️ **Security issues detected** (warn mode - not blocking)"
             fi
             echo
             emit_findings_markdown "$findings_source"
             echo
             if [[ "$block_on_failure" == "true" ]]; then
+                emit_footer
                 exit 1
             fi
             echo 'To block on these findings, set `WIZ_BLOCK_ON_FAILURE=true` or use `--block` flag.'
+            emit_footer
             exit 0
             ;;
         1|2)
-            echo "Error: Scan failed to execute"
+            emit_header "error"
+            echo "❌ **Scan failed to execute**"
+            echo
+            
+            # Display wizcli output if available
+            if [[ -f "$SCAN_STDOUT" && -s "$SCAN_STDOUT" ]]; then
+                echo "**Wizcli output:**"
+                echo
+                echo '```'
+                cat "$SCAN_STDOUT"
+                echo '```'
+                echo
+            else
+                echo "**Wizcli output:** (no output captured)"
+                echo
+            fi
+            
+            printf 'Scanned path: `%s`\n' "$scan_path"
+            emit_footer
             exit 1
             ;;
         *)
-            echo "Error: Scan failed to execute (exit code $SCAN_EXIT_CODE)"
+            emit_header "error"
+            echo "❌ **Scan failed to execute (exit code $SCAN_EXIT_CODE)**"
+            echo
+            
+            # Display wizcli output if available
+            if [[ -f "$SCAN_STDOUT" && -s "$SCAN_STDOUT" ]]; then
+                echo "**Wizcli output:**"
+                echo
+                echo '```'
+                cat "$SCAN_STDOUT"
+                echo '```'
+                echo
+            else
+                echo "**Wizcli output:** (no output captured)"
+                echo
+            fi
+            
+            printf 'Scanned path: `%s`\n' "$scan_path"
+            emit_footer
             exit 1
             ;;
     esac

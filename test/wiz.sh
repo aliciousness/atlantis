@@ -782,11 +782,168 @@ test_wizscan_infra_error() {
     exit_code=$?
     set -e
     
-    if [[ $exit_code -eq 1 ]] && echo "$output" | grep -q "Scan failed"; then
+    if [[ $exit_code -eq 1 ]] && echo "$output" | grep -q "Scan failed" && echo "$output" | grep -q "Infrastructure error"; then
         unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
         return 0
     else
         echo "Infra error test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_infra_error_shows_wizcli_output() {
+    export MOCK_SCAN_EXIT_CODE=1
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output exit_code
+    set +e
+    output=$(bash "$WIZSCAN_SH" --path /tmp 2>&1)
+    exit_code=$?
+    set -e
+    
+    if echo "$output" | grep -q "Infrastructure error" && echo "$output" | grep -q "Wizcli output:" && [[ $exit_code -eq 1 ]]; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Exit 1 wizcli output test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_exit_code_2_shows_output() {
+    export MOCK_SCAN_EXIT_CODE=2
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output exit_code
+    set +e
+    output=$(bash "$WIZSCAN_SH" --path /tmp 2>&1)
+    exit_code=$?
+    set -e
+    
+    if echo "$output" | grep -q "Infrastructure error" && [[ $exit_code -eq 1 ]]; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Exit 2 wizcli output test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_unknown_exit_shows_output() {
+    export MOCK_SCAN_EXIT_CODE=5
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output exit_code
+    set +e
+    output=$(bash "$WIZSCAN_SH" --path /tmp 2>&1)
+    exit_code=$?
+    set -e
+    
+    if echo "$output" | grep -q "Unknown scan error" && echo "$output" | grep -q "exit code 5" && [[ $exit_code -eq 1 ]]; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Unknown exit code test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_nested_json_config() {
+    export WIZ_CONFIG='{"scan":{"path":"./nested-path","types":"cloudformation"}}'
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" >/dev/null 2>&1
+    
+    if grep -q "./nested-path" "$MOCK_WIZCLI_LOG" && grep -q "cloudformation" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CONFIG WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "Nested JSON config test failed" >&2
+        unset WIZ_CONFIG WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_flat_json_backward_compat() {
+    export WIZ_CONFIG='{"path":"./flat-path","types":"terraform"}'
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" >/dev/null 2>&1
+    
+    if grep -q "./flat-path" "$MOCK_WIZCLI_LOG" && grep -q "terraform" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CONFIG WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "Flat JSON backward compat test failed" >&2
+        unset WIZ_CONFIG WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_details_wrapper_clean() {
+    export MOCK_SCAN_EXIT_CODE=0
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output
+    output=$(bash "$WIZSCAN_SH" --path /tmp 2>&1)
+    
+    if echo "$output" | grep -q "<details>" && echo "$output" | grep -q "<summary>✅" && echo "$output" | grep -q "</details>"; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Details wrapper clean scan test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_details_wrapper_violations() {
+    export MOCK_SCAN_EXIT_CODE=4
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output
+    set +e
+    output=$(bash "$WIZSCAN_SH" --path /tmp --block 2>&1)
+    set -e
+    
+    if echo "$output" | grep -q "<details>" && echo "$output" | grep -q "<summary>" && echo "$output" | grep -q "</details>"; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Details wrapper violations test failed" >&2
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 1
+    fi
+}
+
+test_wizscan_details_wrapper_error() {
+    export MOCK_SCAN_EXIT_CODE=1
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    
+    local output
+    set +e
+    output=$(bash "$WIZSCAN_SH" --path /tmp 2>&1)
+    set -e
+    
+    if echo "$output" | grep -q "<details>" && echo "$output" | grep -q "<summary>💥" && echo "$output" | grep -q "</details>"; then
+        unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
+        return 0
+    else
+        echo "Details wrapper error test failed" >&2
         unset MOCK_SCAN_EXIT_CODE WIZ_CLIENT_ID WIZ_CLIENT_SECRET
         return 1
     fi
@@ -989,6 +1146,14 @@ run_test "wizscan - violations warn mode (exit 4 + no block)" test_wizscan_viola
 run_test "wizscan - violations block mode (exit 4 + --block)" test_wizscan_violations_block
 run_test "wizscan - auth failure retry (exit 3)" test_wizscan_auth_failure_retry
 run_test "wizscan - infrastructure error (exit 1)" test_wizscan_infra_error
+run_test "wizscan - infra error shows wizcli output" test_wizscan_infra_error_shows_wizcli_output
+run_test "wizscan - exit code 2 shows output" test_wizscan_exit_code_2_shows_output
+run_test "wizscan - unknown exit shows output" test_wizscan_unknown_exit_shows_output
+run_test "wizscan - nested JSON config" test_wizscan_nested_json_config
+run_test "wizscan - flat JSON backward compat" test_wizscan_flat_json_backward_compat
+run_test "wizscan - details wrapper clean" test_wizscan_details_wrapper_clean
+run_test "wizscan - details wrapper violations" test_wizscan_details_wrapper_violations
+run_test "wizscan - details wrapper error" test_wizscan_details_wrapper_error
 run_test "wizscan - CLI flag precedence" test_wizscan_flag_precedence
 run_test "wizscan - invalid flag error" test_wizscan_invalid_flag
 run_test "wizscan - JSON output file flag" test_wizscan_json_output_file_flag
