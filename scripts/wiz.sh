@@ -160,7 +160,6 @@ if [ -n "$WIZ_CONFIG" ]; then
     export WIZ_SCAN_PATH=$(echo "$cleaned_json" | jq -r '.scan.path // empty')
     export WIZ_POLICIES=$(echo "$cleaned_json" | jq -c '.scan.policies // empty')
     export WIZ_SCAN_TYPES=$(echo "$cleaned_json" | jq -r '.scan.types // empty')
-    export WIZ_SEVERITY=$(echo "$cleaned_json" | jq -r '.scan.severity // empty')
     export WIZ_OUTPUT_FORMAT=$(echo "$cleaned_json" | jq -r '.scan.output_format // empty')
     export WIZ_OUTPUT_FILE=$(echo "$cleaned_json" | jq -r '.scan.output_file // empty')
     

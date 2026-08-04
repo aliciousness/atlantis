@@ -810,6 +810,124 @@ test_wizscan_flag_precedence() {
     fi
 }
 
+test_wizscan_json_output_file_flag() {
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp --output-format json --output-file /tmp/output.json >/dev/null 2>&1
+    
+    if grep -q "\-\-json-output-file" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "JSON output file flag not found in log" >&2
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_sarif_output_file_flag() {
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp --output-format sarif --output-file /tmp/output.sarif >/dev/null 2>&1
+    
+    if grep -q "\-\-sarif-output-file" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "SARIF output file flag not found in log" >&2
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_csv_output_file_flag() {
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp --output-format csv --output-file /tmp/output.csv >/dev/null 2>&1
+    
+    if grep -q "\-\-csv-output-file" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "CSV output file flag not found in log" >&2
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_human_output_file_flag() {
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp --output-format human --output-file /tmp/output.txt >/dev/null 2>&1
+    
+    if grep -q "\-\-human-output-file" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "Human output file flag not found in log" >&2
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_no_output_file_no_flag() {
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp >/dev/null 2>&1
+    
+    if ! grep -q "\-\-.*-output-file" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "Output file flag should not be present when output_file not set" >&2
+        unset WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_severity_not_passed() {
+    export WIZ_SEVERITY="HIGH"
+    export WIZ_CLIENT_ID="test-id"
+    export WIZ_CLIENT_SECRET="test-secret"
+    export MOCK_SCAN_EXIT_CODE=0
+    
+    bash "$WIZSCAN_SH" --path /tmp >/dev/null 2>&1
+    
+    if ! grep -q "\-\-severity" "$MOCK_WIZCLI_LOG"; then
+        unset WIZ_SEVERITY WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 0
+    else
+        echo "Severity flag should not be passed to wizcli" >&2
+        unset WIZ_SEVERITY WIZ_CLIENT_ID WIZ_CLIENT_SECRET MOCK_SCAN_EXIT_CODE
+        return 1
+    fi
+}
+
+test_wizscan_severity_flag_rejected() {
+    local output exit_code
+    set +e
+    output=$(bash "$WIZSCAN_SH" --severity HIGH 2>&1)
+    exit_code=$?
+    set -e
+    
+    if [[ $exit_code -ne 0 ]] && echo "$output" | grep -q "Unknown option"; then
+        return 0
+    else
+        echo "Severity flag should be rejected as unknown option" >&2
+        return 1
+    fi
+}
+
 test_wizscan_invalid_flag() {
     local output exit_code
     set +e
@@ -873,6 +991,13 @@ run_test "wizscan - auth failure retry (exit 3)" test_wizscan_auth_failure_retry
 run_test "wizscan - infrastructure error (exit 1)" test_wizscan_infra_error
 run_test "wizscan - CLI flag precedence" test_wizscan_flag_precedence
 run_test "wizscan - invalid flag error" test_wizscan_invalid_flag
+run_test "wizscan - JSON output file flag" test_wizscan_json_output_file_flag
+run_test "wizscan - SARIF output file flag" test_wizscan_sarif_output_file_flag
+run_test "wizscan - CSV output file flag" test_wizscan_csv_output_file_flag
+run_test "wizscan - Human output file flag" test_wizscan_human_output_file_flag
+run_test "wizscan - no output file flag when not set" test_wizscan_no_output_file_no_flag
+run_test "wizscan - severity env var not passed" test_wizscan_severity_not_passed
+run_test "wizscan - severity flag rejected" test_wizscan_severity_flag_rejected
 
 echo -e "\n═══════════════════════════════════════"
 echo -e "Test Summary:"

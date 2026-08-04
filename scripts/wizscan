@@ -15,11 +15,10 @@ Usage: wizscan [options]
 Wrapper for Wiz CLI IaC scanning with Atlantis-friendly markdown output.
 
 Options:
-  --path <dir>            Scan path (default: WIZ_SCAN_PATH or ".")
-  --policies <name>       Policy set name (default: WIZ_POLICIES)
-  --types <type>          IaC type(s) (default: WIZ_SCAN_TYPES or "Terraform")
-  --severity <level>      Severity filter (default: WIZ_SEVERITY)
-  --output-file <path>    Wiz output file path (default: WIZ_OUTPUT_FILE)
+   --path <dir>            Scan path (default: WIZ_SCAN_PATH or ".")
+   --policies <name>       Policy set name (default: WIZ_POLICIES)
+   --types <type>          IaC type(s) (default: WIZ_SCAN_TYPES or "Terraform")
+   --output-file <path>    Wiz output file path (default: WIZ_OUTPUT_FILE)
   --output-format <fmt>   Output format (default: WIZ_OUTPUT_FORMAT or "json")
   --block                 Block on violations (exit 1 on exit code 4)
   --no-block              Warn on violations (exit 0 on exit code 4)
@@ -166,11 +165,10 @@ run_auth() {
 }
 
 main() {
-    local scan_path="${WIZ_SCAN_PATH:-.}"
-    local scan_policies="${WIZ_POLICIES:-}"
-    local scan_types="${WIZ_SCAN_TYPES:-Terraform}"
-    local scan_severity="${WIZ_SEVERITY:-}"
-    local output_file="${WIZ_OUTPUT_FILE:-}"
+     local scan_path="${WIZ_SCAN_PATH:-.}"
+     local scan_policies="${WIZ_POLICIES:-}"
+     local scan_types="${WIZ_SCAN_TYPES:-Terraform}"
+     local output_file="${WIZ_OUTPUT_FILE:-}"
     local output_format="${WIZ_OUTPUT_FORMAT:-json}"
     local block_on_failure
     block_on_failure="$(normalize_bool "${WIZ_BLOCK_ON_FAILURE:-false}")"
@@ -182,13 +180,10 @@ main() {
     if cfg_val="$(first_wiz_config_value policies scan_policies WIZ_POLICIES 2>/dev/null)"; then
         scan_policies="$cfg_val"
     fi
-    if cfg_val="$(first_wiz_config_value types scan_types WIZ_SCAN_TYPES 2>/dev/null)"; then
-        scan_types="$cfg_val"
-    fi
-    if cfg_val="$(first_wiz_config_value severity scan_severity WIZ_SEVERITY 2>/dev/null)"; then
-        scan_severity="$cfg_val"
-    fi
-    if cfg_val="$(first_wiz_config_value output_file outputFile WIZ_OUTPUT_FILE 2>/dev/null)"; then
+     if cfg_val="$(first_wiz_config_value types scan_types WIZ_SCAN_TYPES 2>/dev/null)"; then
+         scan_types="$cfg_val"
+     fi
+     if cfg_val="$(first_wiz_config_value output_file outputFile WIZ_OUTPUT_FILE 2>/dev/null)"; then
         output_file="$cfg_val"
     fi
     if cfg_val="$(first_wiz_config_value output_format outputFormat WIZ_OUTPUT_FORMAT 2>/dev/null)"; then
@@ -210,17 +205,12 @@ main() {
                 scan_policies="$2"
                 shift 2
                 ;;
-            --types)
-                [[ $# -ge 2 ]] || { echo "Error: --types requires a value" >&2; exit 1; }
-                scan_types="$2"
-                shift 2
-                ;;
-            --severity)
-                [[ $# -ge 2 ]] || { echo "Error: --severity requires a value" >&2; exit 1; }
-                scan_severity="$2"
-                shift 2
-                ;;
-            --output-file)
+             --types)
+                 [[ $# -ge 2 ]] || { echo "Error: --types requires a value" >&2; exit 1; }
+                 scan_types="$2"
+                 shift 2
+                 ;;
+             --output-file)
                 [[ $# -ge 2 ]] || { echo "Error: --output-file requires a value" >&2; exit 1; }
                 output_file="$2"
                 shift 2
@@ -250,20 +240,13 @@ main() {
         esac
     done
 
-    local -a cmd=("wizcli" "iac" "scan" "--path" "$scan_path" "--types" "$scan_types")
-    if [[ -n "$scan_policies" ]]; then
-        cmd+=("--policies" "$scan_policies")
-    fi
-    if [[ -n "$scan_severity" ]]; then
-        cmd+=("--severity" "$scan_severity")
-    fi
-    if [[ -n "$output_file" ]]; then
-        if [[ "$output_format" == "json" ]]; then
-            cmd+=("--json-output-file" "$output_file")
-        else
-            cmd+=("--output-file" "$output_file" "--output-format" "$output_format")
-        fi
-    fi
+     local -a cmd=("wizcli" "iac" "scan" "--path" "$scan_path" "--types" "$scan_types")
+     if [[ -n "$scan_policies" ]]; then
+         cmd+=("--policies" "$scan_policies")
+     fi
+     if [[ -n "$output_file" ]]; then
+         cmd+=("--${output_format}-output-file" "$output_file")
+     fi
 
     debug "Running Wiz scan command: ${cmd[*]}"
     debug "block_on_failure=$block_on_failure"

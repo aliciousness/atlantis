@@ -52,7 +52,6 @@ The script automatically detects whether `WIZ_CONFIG` contains inline JSON or a 
     "path": "./",
     "policies": "TerraformBestPractices,ComplianceChecks",
     "types": "terraform",
-    "severity": "MEDIUM",
     "output_format": "json",
     "output_file": ""
   },
@@ -80,8 +79,7 @@ The script automatically detects whether `WIZ_CONFIG` contains inline JSON or a 
 | **scan** | `path` | string | ❌ No | `./` | Path to scan (relative to repo root) |
 | | `policies` | string | ❌ No | - | Comma-separated list of policy names |
 | | `types` | string | ❌ No | `terraform` | IaC types to scan (terraform, cloudformation, etc.) |
-| | `severity` | string | ❌ No | - | Minimum severity level (LOW, MEDIUM, HIGH, CRITICAL) |
-| | `output_format` | string | ❌ No | `json` | Output format (json, sarif, etc.) |
+| | `output_format` | string | ❌ No | `json` | Output format — determines which `--{format}-output-file` flag is passed to wizcli (json, sarif, csv, human) |
 | | `output_file` | string | ❌ No | - | Path to save scan results |
 | **behavior** | `block_on_failure` | boolean | ❌ No | `false` | Block (exit 1) on policy violations |
 | | `apply_gate` | boolean | ❌ No | `false` | Use stricter policies for apply vs plan |
@@ -103,7 +101,6 @@ Alternatively, configure using individual environment variables:
 | `WIZ_SCAN_PATH` | `scan.path` | Path to scan |
 | `WIZ_POLICIES` | `scan.policies` | Comma-separated policy names |
 | `WIZ_SCAN_TYPES` | `scan.types` | IaC types to scan |
-| `WIZ_SEVERITY` | `scan.severity` | Minimum severity level |
 | `WIZ_OUTPUT_FORMAT` | `scan.output_format` | Output format |
 | `WIZ_OUTPUT_FILE` | `scan.output_file` | Output file path |
 | `WIZ_BLOCK_ON_FAILURE` | `behavior.block_on_failure` | Block on violations (true/false) |
@@ -277,8 +274,7 @@ services:
         },
         "scan": {
           "path": "./",
-          "policies": "TerraformBestPractices",
-          "severity": "MEDIUM"
+          "policies": "TerraformBestPractices"
         },
         "behavior": {
           "block_on_failure": false,
@@ -496,7 +492,6 @@ This approach is useful for:
     "path": "./terraform",
     "policies": "TerraformBestPractices,ComplianceChecks,SecurityBaseline",
     "types": "terraform",
-    "severity": "MEDIUM",
     "output_format": "json",
     "output_file": "/tmp/wiz-scan-results.json"
   },
