@@ -39,5 +39,8 @@ services:
           }
         ]
       REGISTRY_JSON: '"{\n\"credentials\":{\n\"your-registry.example.com\":{\n\"token\":\"abcdefghijklmnopqrstu.VW243Xyz\"\n}\n}\n}\n"'
+      # Optional: Wiz CLI configuration for IaC security scanning
+      # Uncomment and configure to enable Wiz integration (disabled by default)
+      # WIZ_CONFIG: '{"auth":{"client_id":"wiz-atlantis-prod","client_secret":"your-wiz-secret-from-vault","api_url":"https://api.us20.app.wiz.io"},"scan":{"path":"./","policies":"TerraformBestPractices,ComplianceChecks","types":"terraform","severity":"MEDIUM"},"behavior":{"block_on_failure":false,"apply_gate":true},"advanced":{"wiz_dir":"/home/atlantis/.wiz","timeout":"300"}}'
 volumes:
   atlantis:

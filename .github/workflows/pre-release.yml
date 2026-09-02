@@ -36,7 +36,6 @@ jobs:
           push: true
           tags: |
             "aliciousness/atlantis:${{ env.TAG }}"
-            "aliciousness/atlantis:prelease"
           build-args: |
             VERSION=${{ env.TAG }}
           labels: |

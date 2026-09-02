@@ -141,14 +141,20 @@ shell:
 shell-ngrok:
     docker-compose exec ngrok /bin/sh
 
-# Run tests (if they exist)
+# Run all tests in test/ directory
 test:
-    @echo "Running tests..."
-    @if [ -f test/teamauthz.sh ]; then \
-        bash test/teamauthz.sh; \
-    else \
-        echo "No tests found"; \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running tests..."
+    if [ ! -d test ] || [ -z "$(ls -1 test/*.sh 2>/dev/null)" ]; then
+        echo "No tests found"
+        exit 0
     fi
+    for f in test/*.sh; do
+        echo "Running $f..."
+        bash "$f" || exit 1
+    done
+    echo "✓ All tests passed"
 
 # Display project README
 readme:
