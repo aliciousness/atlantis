@@ -54,14 +54,14 @@ jobs:
           # Fetch upstream release notes
           UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${UPSTREAM_VERSION}" --jq '.body // ""' 2>/dev/null || echo "")
           UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${UPSTREAM_VERSION}"
-          
+
           # Strip 'v' prefix for version header
           VERSION_NO_V="${UPSTREAM_VERSION#v}"
           CURRENT_NO_V="${CURRENT_VERSION#v}"
-          
+
           # Get current date in YYYY-MM-DD format
           DATE=$(date +%Y-%m-%d)
-          
+
           # Insert the new entry after line 5 (after "The format is based on...")
           {
             head -n 5 CHANGELOG.md
@@ -75,13 +75,13 @@ jobs:
             echo ""
             tail -n +6 CHANGELOG.md
           } > CHANGELOG.md.tmp && mv CHANGELOG.md.tmp CHANGELOG.md
-          
+
           # Add new comparison link at the top of the comparison links section
           # Insert before the current latest version link
           sed -i "/^\[${CURRENT_NO_V}\]:/i [${VERSION_NO_V}]: https://github.com/aliciousness/atlantis/compare/${CURRENT_VERSION}...${UPSTREAM_VERSION}" CHANGELOG.md
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "upstream-release-action[bot]"
+          git config user.email "upstream-release-action[bot]@users.noreply.github.com"
           git pull origin main
           git add dockerfile CHANGELOG.md
           git commit -m "chore: bump atlantis to ${UPSTREAM_VERSION}"
