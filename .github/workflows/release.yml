@@ -32,13 +32,16 @@ jobs:
             echo "⚠️  Both files must be modified together. Skipping release."
           fi
       
-      - name: Extract version from dockerfile
+      - name: Extract versions
         if: steps.check_files.outputs.both_modified == 'true'
         id: version
         run: |
-          VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
-          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $VERSION"
+          BASE_VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
+          RELEASE_TAG="v$(grep -oP '^## \[\K[^\]]+' CHANGELOG.md | head -n1)"
+          echo "base=$BASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Detected upstream base version: $BASE_VERSION"
+          echo "Detected release tag (from CHANGELOG.md): $RELEASE_TAG"
 
       - name: Check if release already exists
         if: steps.check_files.outputs.both_modified == 'true'
@@ -59,14 +62,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${TAG}" --jq '.body // ""' 2>/dev/null || echo "")
-          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${TAG}"
+          BASE="${{ steps.version.outputs.base }}"
+          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${BASE}" --jq '.body // ""' 2>/dev/null || echo "")
+          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${BASE}"
 
           {
             echo "body<<RELEASE_EOF"
-            echo "## Atlantis ${TAG}"
+            echo "## Atlantis ${TAG} (base: ${BASE})"
             echo ""
-            echo "Automated release tracking [runatlantis/atlantis ${TAG}](${UPSTREAM_URL})."
+            echo "Automated release tracking [runatlantis/atlantis ${BASE}](${UPSTREAM_URL})."
             echo ""
             echo "### Upstream Changes"
             echo ""
