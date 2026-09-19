@@ -9,7 +9,7 @@ RUN apk add --no-cache jq python3 py3-botocore \
   && chmod +x /usr/local/bin/tfsec \
   && mkdir -p /home/atlantis/policies /usr/local/share/atlantis \
   && chown -R atlantis:root /home/atlantis/policies /usr/local/share/atlantis
-COPY scripts/ /docker-entrypoint.d/
+COPY --chmod=0755 scripts/ /docker-entrypoint.d/
 COPY --chmod=0755 credentials/terraform-credentials-jfrog /usr/local/share/atlantis/terraform-credentials-jfrog
 COPY --chmod=0644 credentials/terraformrc /usr/local/share/atlantis/terraformrc
 RUN mv /docker-entrypoint.d/teamauthz /usr/local/bin/teamauthz \

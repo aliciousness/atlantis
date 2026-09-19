@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.47.1.1] - 2026-09-19
+
+### Fixed
+
+- `scripts/` are now copied into `/docker-entrypoint.d/` with `COPY --chmod=0755`, forcing the executable bit at build time instead of inheriting it from the host filesystem. This fixes `jfrog_credentials_helper.sh` (and guards all future entrypoint scripts) from being silently skipped by Atlantis's `docker-entrypoint.sh`, which ignores any `.sh` file without the executable bit set (no error, no log beyond "Ignoring ..., not executable") — the seeded JFrog credentials helper was never being installed into `/home/atlantis/.terraform.d/plugins/`.
+
 ## [0.47.1] - 2026-09-18
 
 ### Added
