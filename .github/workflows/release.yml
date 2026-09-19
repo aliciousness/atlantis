@@ -16,32 +16,38 @@ jobs:
         with:
           fetch-depth: 2
       
-      - name: Check both files modified
+      - name: Check CHANGELOG modified
         id: check_files
         run: |
           # Get list of files modified in the push
           MODIFIED_FILES=$(git diff --name-only HEAD^..HEAD)
           echo "Modified files: $MODIFIED_FILES"
           
-          # Check if both dockerfile AND CHANGELOG.md were modified
-          if echo "$MODIFIED_FILES" | grep -q "^dockerfile$" && echo "$MODIFIED_FILES" | grep -q "^CHANGELOG.md$"; then
-            echo "both_modified=true" >> "$GITHUB_OUTPUT"
-            echo "✅ Both dockerfile and CHANGELOG.md were modified"
+          # Release version comes from CHANGELOG.md's top entry, so that's the
+          # only file that must be modified for this push to be considered for release.
+          # (dockerfile may or may not change alongside it - e.g. a patch release
+          # fixing something in scripts/ without bumping the upstream base version)
+          if echo "$MODIFIED_FILES" | grep -q "^CHANGELOG.md$"; then
+            echo "changelog_modified=true" >> "$GITHUB_OUTPUT"
+            echo "✅ CHANGELOG.md was modified"
           else
-            echo "both_modified=false" >> "$GITHUB_OUTPUT"
-            echo "⚠️  Both files must be modified together. Skipping release."
+            echo "changelog_modified=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️  CHANGELOG.md was not modified. Skipping release."
           fi
       
-      - name: Extract version from dockerfile
-        if: steps.check_files.outputs.both_modified == 'true'
+      - name: Extract versions
+        if: steps.check_files.outputs.changelog_modified == 'true'
         id: version
         run: |
-          VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
-          echo "tag=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Detected version: $VERSION"
+          BASE_VERSION=$(grep -oP 'FROM ghcr.io/runatlantis/atlantis:\Kv[^\s-]+' dockerfile)
+          RELEASE_TAG="v$(grep -oP '^## \[\K[^\]]+' CHANGELOG.md | head -n1)"
+          echo "base=$BASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "Detected upstream base version: $BASE_VERSION"
+          echo "Detected release tag (from CHANGELOG.md): $RELEASE_TAG"
 
       - name: Check if release already exists
-        if: steps.check_files.outputs.both_modified == 'true'
+        if: steps.check_files.outputs.changelog_modified == 'true'
         id: check_release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -53,20 +59,21 @@ jobs:
           fi
 
       - name: Fetch upstream release notes
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         id: upstream_notes
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${TAG}" --jq '.body // ""' 2>/dev/null || echo "")
-          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${TAG}"
+          BASE="${{ steps.version.outputs.base }}"
+          UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${BASE}" --jq '.body // ""' 2>/dev/null || echo "")
+          UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${BASE}"
 
           {
             echo "body<<RELEASE_EOF"
-            echo "## Atlantis ${TAG}"
+            echo "## Atlantis ${TAG} (base: ${BASE})"
             echo ""
-            echo "Automated release tracking [runatlantis/atlantis ${TAG}](${UPSTREAM_URL})."
+            echo "Automated release tracking [runatlantis/atlantis ${BASE}](${UPSTREAM_URL})."
             echo ""
             echo "### Upstream Changes"
             echo ""
@@ -79,7 +86,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub release
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -100,25 +107,25 @@ jobs:
             -F generate_release_notes=true
 
       - name: Set up QEMU
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/setup-qemu-action@288220e341e5c445ddb6d73e19a57a9012ceca88
 
       - name: Setup Docker Buildx
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
         with:
           platforms: linux/amd64,linux/arm64
           use: true
 
       - name: Login to DockerHub
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push app
-        if: steps.check_files.outputs.both_modified == 'true' && steps.check_release.outputs.exists == 'false'
+        if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25
         with:
           context: .
