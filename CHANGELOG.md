@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.47.1] - 2026-09-18
+
+### Added
+
+- JFrog AWS IAM token-exchange credentials helper (`terraform-credentials-jfrog`) with runtime-seed entrypoint, replacing the stored `REGISTRY_JSON` token for `gcewebmkt.jfrog.io`.
+
 ## [0.46.0] - 2026-06-30
 
 ### Changed
