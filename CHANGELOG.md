@@ -10,6 +10,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - `scripts/` are now copied into `/docker-entrypoint.d/` with `COPY --chmod=0755`, forcing the executable bit at build time instead of inheriting it from the host filesystem. This fixes `jfrog_credentials_helper.sh` (and guards all future entrypoint scripts) from being silently skipped by Atlantis's `docker-entrypoint.sh`, which ignores any `.sh` file without the executable bit set (no error, no log beyond "Ignoring ..., not executable") — the seeded JFrog credentials helper was never being installed into `/home/atlantis/.terraform.d/plugins/`.
 
+### Changed
+
+- `.github/workflows/release.yml`: the release/image tag is now derived from `CHANGELOG.md`'s top `## [X.Y.Z]` entry instead of the Dockerfile's upstream `FROM` version, so patch releases of this repo (e.g. this entry) can ship independently of upstream Atlantis version bumps without colliding with an already-released upstream tag. The upstream `FROM` version is still extracted separately and used for the "upstream release notes" link/lookup, so that stays accurate.
+- `.github/workflows/release.yml`: the gate that decides whether to build/release now only requires `CHANGELOG.md` to have changed in the push (previously required both `dockerfile` and `CHANGELOG.md` to change together). This lets a `CHANGELOG.md`-driven patch release land even when a prior commit already introduced the `dockerfile` change separately, while the existing "release tag already exists" check still prevents duplicate/accidental releases.
+
 ## [0.47.1] - 2026-09-18
 
 ### Added
