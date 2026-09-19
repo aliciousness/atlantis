@@ -40,7 +40,7 @@ if [ -f "$SOURCE_CRED" ]; then
     debug 2 "Copying $SOURCE_CRED to $DEST_CRED"
     cp "$SOURCE_CRED" "$DEST_CRED"
     chmod 0755 "$DEST_CRED"
-    chown atlantis:root "$DEST_CRED"
+    chown atlantis:root "$DEST_CRED" 2>/dev/null || true
     info "Copied terraform-credentials-jfrog helper"
 else
     info "Warning: $SOURCE_CRED not found, skipping credentials helper setup"
@@ -54,7 +54,7 @@ if [ -f "$SOURCE_RC" ]; then
     debug 2 "Copying $SOURCE_RC to $DEST_RC"
     cp "$SOURCE_RC" "$DEST_RC"
     chmod 0600 "$DEST_RC"
-    chown atlantis:root "$DEST_RC"
+    chown atlantis:root "$DEST_RC" 2>/dev/null || true
     info "Copied terraformrc configuration"
 else
     info "Warning: $SOURCE_RC not found, skipping terraformrc setup"

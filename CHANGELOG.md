@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.47.1.2] - 2026-09-19
+
+### Fixed
+
+- `jfrog_credentials_helper.sh`'s `chown atlantis:root` calls no longer crash the container on boot. `/home/atlantis` is EFS-mounted through an access point that enforces a fixed POSIX uid/gid on everything under it, so `chown` to a different owner always fails there with "Operation not permitted" (`aws_profiles.sh` hits the identical error and just continues, since it has no strict mode). Our script's `set -euo pipefail` turned that harmless, pre-existing condition into a fatal crash mid-script — which, since `docker-entrypoint.sh` doesn't check each entrypoint script's exit code, silently killed the entire container boot before Atlantis ever started. `chown` is now non-fatal (`|| true`) since the access point already enforces correct ownership on anything created under the mount, making the explicit `chown` redundant anyway.
+
 ## [0.47.1.1] - 2026-09-19
 
 ### Fixed
