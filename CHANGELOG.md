@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.49.0] - 2026-10-27
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.47.1-alpine` to `v0.49.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.49.0)
+
+
 ## [0.47.1.2] - 2026-09-19
 
 ### Fixed
