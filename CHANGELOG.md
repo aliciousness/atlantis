@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.48.2] - 2026-10-27
+### Highlights
+Emergency security release for the eMudhra intermediate CA key compromise. The private keys of eight eMudhra (emSign) intermediate certificates were compromised; some of those intermediates are cross-signed by a root that every trust store includes. We recommend all users upgrade.
+
+- Go 1.27.3: Atlantis is now built with go1.27.3, whose crypto/x509 rejects any certificate chain containing the eight compromised keys (CVE-2026-111943). Go does not check revocation, so Atlantis v0.48.1 and earlier, built with go1.27.1, would accept a certificate issued with those keys for any host, including the VCS APIs Atlantis sends credentials to. go1.27.3 also includes the standard library fixes from go1.27.2.
+- Trust store update in the images: ca-certificates is updated to Alpine 20261020-r0 and Debian 20250419+deb13u1. Both remove emSign ECC Root CA - G3, and Debian also removes the Comodo AAA Services root that cross-signed some of the affected intermediates. This covers the other TLS clients in the image (git, curl, Terraform/OpenTofu and conftest).
+- Runtime image refresh: Debian curl 8.14.1-2+deb13u7 and openssl 3.5.7-1~deb13u3 security pins, Alpine 3.24.2, Terraform 1.16.5, conftest 0.70.1.
+- Dependency security updates: golang.org/x/net v0.60.0 and vite v8.3.3.
+If you build Atlantis yourself, rebuild with go1.27.3 or go1.26.10 or later. The terraform, tofu and conftest binaries are built by their own projects; update them when their releases with the Go fix are available.
+
+### What's Changed
+#### Security changes
+- fix(deps): update Go to 1.27.3 to distrust compromised eMudhra intermediates (release-0.48) by @jamengual in #7000
+- chore(deps): update module golang.org/x/net to v0.60.0 [security] (release-0.48) by @renovate[bot] in #6976
+- chore(deps): update dependency vite to v8.3.3 [security] (release-0.48) by @renovate[bot] in #7002
 
 ## [0.47.1.2] - 2026-09-19
 
