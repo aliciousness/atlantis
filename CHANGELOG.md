@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.49.0] - 2026-10-27
+
+### Changed
+
+- Upgraded base Atlantis Docker image from `v0.48.2-alpine` to `v0.49.0-alpine` (automated upstream tracking)
+  - See [upstream release notes](https://github.com/runatlantis/atlantis/releases/tag/v0.49.0)
+
+
 ## [0.48.2] - 2026-10-27
 ### Highlights
 Emergency security release for the eMudhra intermediate CA key compromise. The private keys of eight eMudhra (emSign) intermediate certificates were compromised; some of those intermediates are cross-signed by a root that every trust store includes. We recommend all users upgrade.
