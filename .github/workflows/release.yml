@@ -15,14 +15,23 @@ jobs:
       - uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a #7.0.1
         with:
           fetch-depth: 2
-      
+
       - name: Check CHANGELOG modified
         id: check_files
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
+          # Manual runs release whatever version CHANGELOG.md currently declares
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "changelog_modified=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Manual dispatch: skipping CHANGELOG.md modification check"
+            exit 0
+          fi
+
           # Get list of files modified in the push
           MODIFIED_FILES=$(git diff --name-only HEAD^..HEAD)
           echo "Modified files: $MODIFIED_FILES"
-          
+
           # Release version comes from CHANGELOG.md's top entry, so that's the
           # only file that must be modified for this push to be considered for release.
           # (dockerfile may or may not change alongside it - e.g. a patch release
@@ -34,7 +43,7 @@ jobs:
             echo "changelog_modified=false" >> "$GITHUB_OUTPUT"
             echo "⚠️  CHANGELOG.md was not modified. Skipping release."
           fi
-      
+
       - name: Extract versions
         if: steps.check_files.outputs.changelog_modified == 'true'
         id: version
@@ -51,8 +60,9 @@ jobs:
         id: check_release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          if gh release view "${{ steps.version.outputs.tag }}" &>/dev/null; then
+          if gh release view "$TAG" &>/dev/null; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -63,9 +73,9 @@ jobs:
         id: upstream_notes
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          BASE: ${{ steps.version.outputs.base }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          BASE="${{ steps.version.outputs.base }}"
           UPSTREAM_BODY=$(gh api "repos/runatlantis/atlantis/releases/tags/${BASE}" --jq '.body // ""' 2>/dev/null || echo "")
           UPSTREAM_URL="https://github.com/runatlantis/atlantis/releases/tag/${BASE}"
 
@@ -89,10 +99,11 @@ jobs:
         if: steps.check_files.outputs.changelog_modified == 'true' && steps.check_release.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          # Passed via env (not inline ${{ }}) so upstream release notes are treated
+          # as data; inline interpolation breaks on backticks/quotes and allows injection
+          UPSTREAM_BODY: ${{ steps.upstream_notes.outputs.body }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          UPSTREAM_BODY="${{ steps.upstream_notes.outputs.body }}"
-
           # Construct combined body with upstream notes and separator for auto-generated section
           COMBINED_BODY="${UPSTREAM_BODY}
 
